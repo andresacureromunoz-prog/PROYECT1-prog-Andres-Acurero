@@ -2,14 +2,28 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "(Windows) Launch",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "enter program name, for example ${workspaceFolder}/a.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      "console": "externalTerminal"
+    },
+
+
+    
+    {
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
       "request": "launch",
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/alfre/OneDrive/Documentos/Programas/PROYECT1-prog-Andres-Acurero",
-      "program": "c:/Users/alfre/OneDrive/Documentos/Programas/PROYECT1-prog-Andres-Acurero/build/Debug/outDebug",
+      "cwd": "c:/Users/alfre/OneDrive/Documentos/Programas/.vscode/PROYECT1-prog-Andres-Acurero",
+      "program": "c:/Users/alfre/OneDrive/Documentos/Programas/.vscode/PROYECT1-prog-Andres-Acurero/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
