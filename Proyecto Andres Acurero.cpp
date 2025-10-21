@@ -20,10 +20,7 @@ const int CAPACIDAD_INICIAL_CITAS_HOSPITAL = 20;
 // 1. MODELO DE DATOS - ESTRUCTURAS
 // =================================================================
 
-/**
- * @struct HistorialMedico
- * @brief Representa una consulta médica individual en el historial de un paciente.
- */
+
 struct HistorialMedico {
     int idConsulta;
     char fecha[11];      // YYYY-MM-DD\0
@@ -35,10 +32,7 @@ struct HistorialMedico {
     float costoConsulta;
 };
 
-/**
- * @struct Paciente
- * @brief Representa a un paciente del hospital.
- */
+
 struct Paciente {
     // Identificación y datos personales
     int id;
@@ -74,10 +68,7 @@ struct Paciente {
     bool activo; // Activo/Inactivo
 };
 
-/**
- * @struct Doctor
- * @brief Representa a un doctor del hospital.
- */
+
 struct Doctor {
     // Identificación y datos personales
     int id;
@@ -109,10 +100,7 @@ struct Doctor {
     bool disponible; // Disponible para nuevos pacientes
 };
 
-/**
- * @struct Cita
- * @brief Representa una cita médica agendada.
- */
+
 struct Cita {
     int idCita;
     int idPaciente;
@@ -125,10 +113,7 @@ struct Cita {
     bool atendida; // true si se generó historial
 };
 
-/**
- * @struct Hospital
- * @brief Estructura principal que contiene todos los datos del sistema.
- */
+
 struct Hospital {
     // Información básica del hospital
     char nombre[101];
@@ -164,11 +149,7 @@ struct Hospital {
 
 // 5.3 Funciones de copia (Deep Copy)
 
-/**
- * @brief Crea una copia profunda de un string.
- * @param origen String a copiar.
- * @return Puntero al nuevo string dinámico o nullptr si origen es nullptr.
- */
+
 char* copiarString(const char* origen) {
     if (origen == nullptr) {
         return nullptr;
@@ -183,11 +164,7 @@ char* copiarString(const char* origen) {
 
 // 5.2 Validaciones
 
-/**
- * @brief Convierte un string a minúsculas para comparaciones case-insensitive.
- * @param str String a convertir.
- * @return String convertido a minúsculas (memoria dinámica, debe liberarse).
- */
+
 char* toLowerString(const char* str) {
     if (str == nullptr) return nullptr;
     size_t len = strlen(str);
@@ -199,16 +176,12 @@ char* toLowerString(const char* str) {
     return lower;
 }
 
-/**
- * @brief Determina si un año es bisiesto.
- */
+
 bool esBisiesto(int anio) {
     return (anio % 4 == 0 && anio % 100 != 0) || (anio % 400 == 0);
 }
 
-/**
- * @brief Valida el formato y la coherencia de una fecha (YYYY-MM-DD).
- */
+
 bool validarFecha(const char* fecha) {
     if (fecha == nullptr || strlen(fecha) != 10 || fecha[4] != '-' || fecha[7] != '-') {
         return false;
@@ -246,9 +219,7 @@ bool validarFecha(const char* fecha) {
     return dia <= diasEnMes[mes];
 }
 
-/**
- * @brief Valida el formato y la coherencia de una hora (HH:MM).
- */
+
 bool validarHora(const char* hora) {
     if (hora == nullptr || strlen(hora) != 5 || hora[2] != ':') {
         return false;
@@ -270,25 +241,18 @@ bool validarHora(const char* hora) {
     return (h >= 0 && h <= 23) && (m >= 0 && m <= 59);
 }
 
-/**
- * @brief Compara dos fechas (YYYY-MM-DD).
- * @return -1 si fecha1 < fecha2, 0 si iguales, 1 si fecha1 > fecha2.
- */
+
 int compararFechas(const char* fecha1, const char* fecha2) {
     // strcmp es suficiente ya que el formato es YYYY-MM-DD
     return strcmp(fecha1, fecha2);
 }
 
-/**
- * @brief Validación básica de cédula: no vacía y dentro de longitud.
- */
+
 bool validarCedula(const char* cedula) {
     return cedula != nullptr && strlen(cedula) > 0 && strlen(cedula) <= 20;
 }
 
-/**
- * @brief Validación básica de email: presencia de '@' y '.'.
- */
+
 bool validarEmail(const char* email) {
     if (email == nullptr || strlen(email) > 50) return false;
     const char* at = strchr(email, '@');
@@ -301,16 +265,7 @@ bool validarEmail(const char* email) {
 // 5.1 GESTIÓN DE MEMORIA Y REDIMENSIONAMIENTO (Array Genérico)
 // =================================================================
 
-/**
- * @brief Función genérica para redimensionar un array dinámico de cualquier tipo.
- * @tparam T Tipo de la estructura a redimensionar.
- * @param array Puntero al array actual (puntero a puntero).
- * @param cantidad Puntero a la cantidad actual de elementos.
- * @param capacidad Puntero a la capacidad actual del array.
- * @param nuevaCapacidad Nueva capacidad deseada.
- * @param copiarElementos Indica si se deben copiar los elementos existentes.
- * @note **Importante:** Para `HistorialMedico`, la copia se hace por valor. Para arrays de punteros (no aplica aquí), se necesitaría lógica adicional.
- */
+
 template <typename T>
 void redimensionarArray(T** array, int* cantidad, int* capacidad, int nuevaCapacidad, bool copiarElementos) {
     if (nuevaCapacidad <= *capacidad) return; // No redimensionar si no es necesario
@@ -355,18 +310,13 @@ void redimensionarArrayCitas(Hospital* hospital) {
     redimensionarArray(&hospital->citas, &hospital->cantidadCitas, &hospital->capacidadCitas, nuevaCapacidad, true);
 }
 
-/**
- * @brief Redimensiona el array de HistorialMedico de un paciente.
- */
+
 void redimensionarHistorial(Paciente* paciente) {
     int nuevaCapacidad = paciente->capacidadHistorial * 2;
     redimensionarArray(&paciente->historial, &paciente->cantidadConsultas, &paciente->capacidadHistorial, nuevaCapacidad, true);
 }
 
-/**
- * @brief Redimensiona el array de IDs (citas o pacientes) de un doctor o paciente.
- * @tparam T Tipo de puntero a array de IDs (int*).
- */
+
 template <typename T>
 void redimensionarArrayIds(T** arrayIds, int* cantidad, int* capacidad) {
     int nuevaCapacidad = (*capacidad) * 2;
@@ -375,9 +325,7 @@ void redimensionarArrayIds(T** arrayIds, int* cantidad, int* capacidad) {
 
 // 5.1 Gestión de memoria (Inicialización y Destrucción)
 
-/**
- * @brief Inicializa la estructura Hospital.
- */
+
 Hospital* inicializarHospital(const char* nombre) {
     Hospital* hospital = new (std::nothrow) Hospital;
     if (hospital == nullptr) {
@@ -433,9 +381,7 @@ Hospital* inicializarHospital(const char* nombre) {
     return hospital;
 }
 
-/**
- * @brief Libera TODA la memoria dinámica asociada al hospital.
- */
+
 void destruirHospital(Hospital* hospital) {
     if (hospital == nullptr) return;
 
@@ -1579,8 +1525,8 @@ void gestionarPacientes(Hospital* hospital) {
                 char nombre[51], apellido[51], cedula[21], sexo;
                 int edad;
                 cout << "--- REGISTRAR PACIENTE ---" << endl;
-                cout << "Nombre (máx 50): "; cin.getline(nombre, 51);
-                cout << "Apellido (máx 50): "; cin.getline(apellido, 51);
+                cout << "Nombre (max 50): "; cin.getline(nombre, 51);
+                cout << "Apellido (max 50): "; cin.getline(apellido, 51);
                 cout << "Cedula de Identidad (max 20, UNICA): "; cin.getline(cedula, 21);
                 
                 if (!validarCedula(cedula)) {
@@ -1634,7 +1580,7 @@ void gestionarPacientes(Hospital* hospital) {
                     cout << setfill('-') << setw(90) << "" << setfill(' ') << endl;
                     cout << "| " << left << setw(5) << "ID"
                          << "| " << setw(30) << "Nombre Completo"
-                         << "| " << setw(15) << "Cédula"
+                         << "| " << setw(15) << "Cedula"
                          << "| " << right << setw(5) << "Edad"
                          << "| " << setw(5) << "Sexo"
                          << "| " << setw(10) << "Consultas"
@@ -1707,7 +1653,7 @@ void gestionarPacientes(Hospital* hospital) {
                 system("cls");
             }
             case 0:
-                cout << "Volviendo al menú principal..." << endl;
+                cout << "Volviendo al menu principal..." << endl;
                 break;
                 system("cls");
             default:
@@ -1880,8 +1826,6 @@ void gestionarDoctores(Hospital* hospital) {
         }
     } while (opcion != 0);
 }
-
-
 
 int menuCitas() {
     int opcion;
