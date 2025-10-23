@@ -243,7 +243,7 @@ bool validarHora(const char* hora) {
 
 
 int compararFechas(const char* fecha1, const char* fecha2) {
-    // strcmp es suficiente ya que el formato es YYYY-MM-DD
+
     return strcmp(fecha1, fecha2);
 }
 
@@ -258,12 +258,9 @@ bool validarEmail(const char* email) {
     const char* at = strchr(email, '@');
     if (at == nullptr) return false; // No hay '@'
     const char* dot = strchr(at, '.');
-    return dot != nullptr && dot != at + 1; // Hay '.' después del '@' y no inmediatamente después
+    return dot != nullptr && dot != at + 1; 
 }
 
-// =================================================================
-// 5.1 GESTIÓN DE MEMORIA Y REDIMENSIONAMIENTO (Array Genérico)
-// =================================================================
 
 
 template <typename T>
@@ -409,9 +406,7 @@ void destruirHospital(Hospital* hospital) {
 }
 
 
-// =================================================================
-// 3. MÓDULO DE GESTIÓN DE DOCTORES (Funciones Auxiliares)
-// =================================================================
+
 
 
 Doctor* buscarDoctorPorId(Hospital* hospital, int id) {
@@ -456,7 +451,7 @@ bool removerId(int* array, int* cantidad, int id) {
     return false;
 }
 
-// 3.1 Funciones obligatorias
+
 
 Doctor* crearDoctor(Hospital* hospital, const char* nombre, const char* apellido, const char* cedula,
                     const char* especialidad, int aniosExperiencia, float costoConsulta) {
@@ -699,9 +694,6 @@ bool eliminarDoctor(Hospital* hospital, int id) {
 }
 
 
-// =================================================================
-// 2. MÓDULO DE GESTIÓN DE PACIENTES (Funciones Auxiliares)
-// =================================================================
 
 
 Paciente* buscarPacientePorCedula(Hospital* hospital, const char* cedula) {
@@ -725,7 +717,6 @@ Paciente* buscarPacientePorCedula(Hospital* hospital, const char* cedula) {
 }
 
 
-// 2.1 Funciones CRUD obligatorias
 
 
 Paciente* crearPaciente(Hospital* hospital, const char* nombre, const char* apellido,
@@ -1107,9 +1098,6 @@ HistorialMedico* obtenerUltimaConsulta(Paciente* paciente) {
 }
 
 
-// =================================================================
-// 4. MÓDULO DE GESTIÓN DE CITAS (Funciones Auxiliares)
-// =================================================================
 
 
 Cita* buscarCitaPorId(Hospital* hospital, int idCita) {
@@ -1460,9 +1448,7 @@ void listarCitasPendientes(Hospital* hospital) {
 }
 
 
-// =================================================================
-// 6. INTERFAZ DE USUARIO (UI)
-// =================================================================
+
 
 
 void limpiarBuffer() {
@@ -1943,9 +1929,6 @@ void gestionarCitas(Hospital* hospital) {
 }
 
 
-// =================================================================
-// Función principal (MAIN)
-// =================================================================
 
 int main() {
     // Inicialización
