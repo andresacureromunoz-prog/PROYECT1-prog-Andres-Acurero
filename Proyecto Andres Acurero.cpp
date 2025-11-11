@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include <ctime>
 #include <iomanip>
@@ -9,17 +10,19 @@ using namespace std;
 
 
 // Constantes
-const int CAPACIDAD_INICIAL_HISTORIAL = 5;
-const int CAPACIDAD_INICIAL_CITAS_PACIENTE = 5;
-const int CAPACIDAD_INICIAL_PACIENTES_DOCTOR = 5;
-const int CAPACIDAD_INICIAL_CITAS_DOCTOR = 10;
-const int CAPACIDAD_INICIAL_HOSPITAL = 10;
-const int CAPACIDAD_INICIAL_CITAS_HOSPITAL = 20;
+const char* ARCHIVO_HOSPITAL = "hospital.bin";
+const char* ARCHIVO_PACIENTES = "pacientes.bin";
+const char* ARCHIVO_DOCTORES = "doctores.bin";
+const char* ARCHIVO_CITAS = "citas.bin";
 
 // =================================================================
 // 1. MODELO DE DATOS - ESTRUCTURAS
 // =================================================================
-
+const int MAX_HISTORIAL_MEDICO = 100;
+const int MAX_CITAS_PACIENTE = 50;
+const int MAX_PACIENTES_DOCTOR = 100;
+const int MAX_CITAS_DOCTOR = 100;
+const int MAX_CITAS_HOSPITAL = 500;
 
 struct HistorialMedico {
     int idConsulta;
@@ -34,112 +37,78 @@ struct HistorialMedico {
 
 
 struct Paciente {
-    // Identificación y datos personales
-    int id;
+    // Datos originales (sin cambios)
+    int idPaciente;
     char nombre[51];
     char apellido[51];
-    char cedula[21]; // DEBE SER ÚNICA
-    
-    // Datos médicos básicos
+    char cedula[11]; // Cédula como string
     int edad;
-    char sexo; // 'M' o 'F'
-    char tipoSangre[6];
+    char sexo;       // 'M', 'F', 'O'
+    // --- NUEVOS CAMPOS REQUERIDOS ---
     
-    // Datos de contacto
-    char telefono[16];
-    char direccion[101];
-    char email[51];
+    HistorialMedico historial[MAX_HISTORIAL_MEDICO];
+    int numHistorial; // Contador de cuántas entradas tiene
     
-    // Historial médico (array dinámico)
-    HistorialMedico* historial;
-    int cantidadConsultas;
-    int capacidadHistorial; // Crece dinámicamente
+    // Citas: Ahora es un array fijo
+    int idCitas[MAX_CITAS_PACIENTE];
+    int numCitas; // Contador de cuántas citas tiene
     
-    // Citas agendadas (array dinámico de IDs)
-    int* citasAgendadas;
-    int cantidadCitasAgendadas;
-    int capacidadCitasAgendadas;
-    
-    // Información médica adicional (arrays fijos - strings)
-    char alergias[501]; // Formato: "Alergia1, Alergia2"
-    char observaciones[501];
-    
-    // Estado
-    bool activo; // Activo/Inactivo
+    bool activo; // Para eliminación lógica
+    // Relleno para asegurar el tamaño fijo del struct
+    char _padding[3]; 
 };
 
 
 struct Doctor {
     // Identificación y datos personales
-    int id;
+     int idDoctor;
     char nombre[51];
     char apellido[51];
-    char cedulaProfesional[21]; // DEBE SER ÚNICA
-    
-    // Datos profesionales
+    char cedulaProfesional[11];
     char especialidad[51];
-    int aniosExperiencia;
-    float costoConsulta; // Mayor a 0
-    char horarioAtencion[51];
-    
-    // Datos de contacto
-    char telefono[16];
-    char email[51];
-    
-    // Pacientes asignados (array dinámico de IDs)
-    int* pacientesAsignados;
-    int cantidadPacientesAsignados;
-    int capacidadPacientesAsignados;
-    
-    // Citas agendadas (array dinámico de IDs)
-    int* citasAgendadas;
-    int cantidadCitasAgendadas;
-    int capacidadCitasAgendadas;
-    
-    // Estado
-    bool disponible; // Disponible para nuevos pacientes
+    int experienciaAnios;
+    float costoConsulta;
+
+    // Pacientes Asignados: Array de IDs de pacientes
+    int idPacientesAsignados[MAX_PACIENTES_DOCTOR];
+    int numPacientesAsignados;
+
+    // Citas: Array de IDs de citas
+    int idCitas[MAX_CITAS_DOCTOR];
+    int numCitas;
+
+    bool activo; // Para eliminación lógica
+    // Relleno para asegurar el tamaño fijo del struct
+    char _padding[3]; 
 };
 
 
 struct Cita {
-    int idCita;
+     int idCita;
     int idPaciente;
     int idDoctor;
-    char fecha[11]; // YYYY-MM-DD\0
-    char hora[6];   // HH:MM\0
-    char motivo[151];
-    char estado[21]; // "Agendada", "Atendida", "Cancelada"
-    char observaciones[201];
-    bool atendida; // true si se generó historial
+    char fecha[11];      // YYYY-MM-DD\0
+    char hora[6];        // HH:MM\0
+    char motivo[101];
+    // Estado: 0: Agendada, 1: Atendida, 2: Cancelada
+    int estado; 
+    
+    bool activo; // Para eliminación lógica
+    // Relleno para asegurar el tamaño fijo del struct
+    char _padding[3]; 
 };
 
 
 struct Hospital {
-    // Información básica del hospital
-    char nombre[101];
-    char direccion[151];
-    char telefono[16];
-    
-    // Arrays dinámicos de pacientes
-    Paciente* pacientes;
-    int cantidadPacientes;
-    int capacidadPacientes;
-    
-    // Arrays dinámicos de doctores
-    Doctor* doctores;
-    int cantidadDoctores;
-    int capacidadDoctores;
-    
-    // Arrays dinámicos de citas
-    Cita* citas;
-    int cantidadCitas;
-    int capacidadCitas;
-    
-    // Contadores automáticos de IDs
-    int siguienteIdPaciente; // Inicia en 1
-    int siguienteIdDoctor;   // Inicia en 1
-    int siguienteIdCita;     // Inicia en 1
-    int siguienteIdConsulta; // Inicia en 1
+   char nombre[101];
+    char direccion[101];
+    int ultimoIdPaciente;
+    int ultimoIdDoctor;
+    int ultimoIdCita;
+    // Contadores reales de registros activos (para reportes/mantenimiento)
+    int totalPacientes;
+    int totalDoctores;
+    int totalCitas;
 };
 
 // void buscarPacientePorId(Hospital* hospital, int id);
@@ -150,30 +119,46 @@ struct Hospital {
 // 5.3 Funciones de copia (Deep Copy)
 
 
-char* copiarString(const char* origen) {
-    if (origen == nullptr) {
-        return nullptr;
-    }
-    // Calcular longitud y crear nuevo array + 1 para el '\0'
-    size_t longitud = strlen(origen);
-    char* copia = new char[longitud + 1];
-    // Copiar el contenido
-    strcpy(copia, origen);
-    return copia;
+long calcularPosicion(int index, size_t structSize) {
+    // Los IDs son base 1, el índice del array es base 0, por eso index - 1.
+    return (index - 1) * structSize;
 }
 
-// 5.2 Validaciones
-
-
-char* toLowerString(const char* str) {
-    if (str == nullptr) return nullptr;
-    size_t len = strlen(str);
-    char* lower = new char[len + 1];
-    for (size_t i = 0; i < len; ++i) {
-        lower[i] = tolower(static_cast<unsigned char>(str[i]));
+void guardarDatosHospital(Hospital* h) {
+    // Usamos trunc para sobrescribir completamente (solo es 1 registro)
+    fstream archivo(ARCHIVO_HOSPITAL, ios::binary | ios::out | ios::trunc);
+    if (archivo.is_open()) {
+        archivo.write(reinterpret_cast<const char*>(h), sizeof(Hospital));
+        archivo.close();
+    } else {
+        cerr << "ERROR: No se pudo abrir/crear el archivo de Hospital para guardar." << endl;
     }
-    lower[len] = '\0';
-    return lower;
+}
+
+Hospital* cargarDatosHospital() {
+    Hospital* h = new Hospital();
+    fstream archivo(ARCHIVO_HOSPITAL, ios::binary | ios::in | ios::out);
+
+    if (archivo.is_open()) {
+        // Archivo existe, cargamos los datos
+        archivo.read(reinterpret_cast<char*>(h), sizeof(Hospital));
+        archivo.close();
+    } else {
+        // Archivo no existe o no se puede abrir, inicializamos
+        cout << "Inicializando nuevo archivo de Hospital..." << endl;
+        strncpy(h->nombre, "Hospital Central (v2 - Binario)", 100);
+        strncpy(h->direccion, "Av. Principal, Ciudad", 100);
+        h->ultimoIdPaciente = 0;
+        h->ultimoIdDoctor = 0;
+        h->ultimoIdCita = 0;
+        h->totalPacientes = 0;
+        h->totalDoctores = 0;
+        h->totalCitas = 0;
+        
+        // Guardamos la inicialización
+        guardarDatosHospital(h);
+    }
+    return h;
 }
 
 
@@ -262,343 +247,992 @@ bool validarEmail(const char* email) {
 }
 
 
-
-template <typename T>
-void redimensionarArray(T** array, int* cantidad, int* capacidad, int nuevaCapacidad, bool copiarElementos) {
-    if (nuevaCapacidad <= *capacidad) return; // No redimensionar si no es necesario
-
-    T* nuevoArray = new (std::nothrow) T[nuevaCapacidad];
-    if (nuevoArray == nullptr) {
-        cerr << "ERROR DE MEMORIA: No se pudo asignar espacio para el nuevo array." << endl;
-        return;
-    }
-
-    if (copiarElementos && *cantidad > 0) {
-        
-        for (int i = 0; i < *cantidad; ++i) {
-            nuevoArray[i] = (*array)[i]; // Copia por valor 
-        }
-    }
-
-    // Libera la memoria del array antiguo
-    if (*array != nullptr) {
-        delete[] *array;
-    }
-
-    // Actualiza el puntero y la capacidad
-    *array = nuevoArray;
-    *capacidad = nuevaCapacidad;
-}
-
-// 5.1 Funciones de Redimensionamiento Específicas
-
-void redimensionarArrayPacientes(Hospital* hospital) {
-    int nuevaCapacidad = hospital->capacidadPacientes * 2;
-    redimensionarArray(&hospital->pacientes, &hospital->cantidadPacientes, &hospital->capacidadPacientes, nuevaCapacidad, true);
-}
-
-void redimensionarArrayDoctores(Hospital* hospital) {
-    int nuevaCapacidad = hospital->capacidadDoctores * 2;
-    redimensionarArray(&hospital->doctores, &hospital->cantidadDoctores, &hospital->capacidadDoctores, nuevaCapacidad, true);
-}
-
-void redimensionarArrayCitas(Hospital* hospital) {
-    int nuevaCapacidad = hospital->capacidadCitas * 2;
-    redimensionarArray(&hospital->citas, &hospital->cantidadCitas, &hospital->capacidadCitas, nuevaCapacidad, true);
-}
-
-
-void redimensionarHistorial(Paciente* paciente) {
-    int nuevaCapacidad = paciente->capacidadHistorial * 2;
-    redimensionarArray(&paciente->historial, &paciente->cantidadConsultas, &paciente->capacidadHistorial, nuevaCapacidad, true);
-}
-
-
-template <typename T>
-void redimensionarArrayIds(T** arrayIds, int* cantidad, int* capacidad) {
-    int nuevaCapacidad = (*capacidad) * 2;
-    redimensionarArray(arrayIds, cantidad, capacidad, nuevaCapacidad, true);
-}
-
-// 5.1 Gestión de memoria (Inicialización y Destrucción)
-
-
-Hospital* inicializarHospital(const char* nombre) {
-    Hospital* hospital = new (std::nothrow) Hospital;
-    if (hospital == nullptr) {
-        cerr << "ERROR DE MEMORIA: No se pudo asignar la estructura Hospital." << endl;
-        return nullptr;
-    }
-
-    // Información básica
-    strncpy(hospital->nombre, nombre, 100);
-    hospital->nombre[100] = '\0';
-    strcpy(hospital->direccion, "N/A");
-    strcpy(hospital->telefono, "N/A");
-
-    // Arrays dinámicos de Pacientes
-    hospital->cantidadPacientes = 0;
-    hospital->capacidadPacientes = CAPACIDAD_INICIAL_HOSPITAL;
-    hospital->pacientes = new (std::nothrow) Paciente[hospital->capacidadPacientes];
-    if (hospital->pacientes == nullptr) {
-        delete hospital;
-        cerr << "ERROR DE MEMORIA: No se pudo asignar el array de Pacientes." << endl;
-        return nullptr;
-    }
-
-    // Arrays dinámicos de Doctores
-    hospital->cantidadDoctores = 0;
-    hospital->capacidadDoctores = CAPACIDAD_INICIAL_HOSPITAL;
-    hospital->doctores = new (std::nothrow) Doctor[hospital->capacidadDoctores];
-    if (hospital->doctores == nullptr) {
-        delete[] hospital->pacientes;
-        delete hospital;
-        cerr << "ERROR DE MEMORIA: No se pudo asignar el array de Doctores." << endl;
-        return nullptr;
-    }
+bool verificarPacienteActivo(int id) {
+    if (id <= 0) return false;
+    Paciente p;
+    fstream archivo(ARCHIVO_PACIENTES, ios::binary | ios::in);
+    if (!archivo.is_open()) return false;
     
-    // Arrays dinámicos de Citas
-    hospital->cantidadCitas = 0;
-    hospital->capacidadCitas = CAPACIDAD_INICIAL_CITAS_HOSPITAL;
-    hospital->citas = new (std::nothrow) Cita[hospital->capacidadCitas];
-    if (hospital->citas == nullptr) {
-        delete[] hospital->pacientes;
-        delete[] hospital->doctores;
-        delete hospital;
-        cerr << "ERROR DE MEMORIA: No se pudo asignar el array de Citas." << endl;
-        return nullptr;
-    }
-
-    // Contadores de IDs
-    hospital->siguienteIdPaciente = 1;
-    hospital->siguienteIdDoctor = 1;
-    hospital->siguienteIdCita = 1;
-    hospital->siguienteIdConsulta = 1;
+    long pos = calcularPosicion(id, sizeof(Paciente));
     
-    return hospital;
+    // Verificamos que la posición no exceda el tamaño del archivo
+    archivo.seekg(0, ios::end);
+    long tamArchivo = archivo.tellg();
+    if (pos >= tamArchivo) {
+        archivo.close();
+        return false;
+    }
+    archivo.seekg(pos);
+    archivo.read(reinterpret_cast<char*>(&p), sizeof(Paciente));
+    archivo.close();
+
+    return p.activo && p.idPaciente == id;
 }
 
+bool verificarDoctorActivo(int id) {
+    if (id <= 0) return false;
+    Doctor d;
+    fstream archivo(ARCHIVO_DOCTORES, ios::binary | ios::in);
+    if (!archivo.is_open()) return false;
+    
+    long pos = calcularPosicion(id, sizeof(Doctor));
 
-void destruirHospital(Hospital* hospital) {
-    if (hospital == nullptr) return;
-
-    // 1. Para cada paciente: liberar arrays internos
-    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
-        delete[] hospital->pacientes[i].historial;
-        delete[] hospital->pacientes[i].citasAgendadas;
+    archivo.seekg(0, ios::end);
+    long tamArchivo = archivo.tellg();
+    if (pos >= tamArchivo) {
+        archivo.close();
+        return false;
     }
-    // 2. Liberar array de pacientes
-    delete[] hospital->pacientes;
 
-    // 3. Para cada doctor: liberar arrays internos
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        delete[] hospital->doctores[i].pacientesAsignados;
-        delete[] hospital->doctores[i].citasAgendadas;
-    }
-    // 4. Liberar array de doctores
-    delete[] hospital->doctores;
+    archivo.seekg(pos);
+    archivo.read(reinterpret_cast<char*>(&d), sizeof(Doctor));
+    archivo.close();
 
-    // 5. Liberar array de citas
-    delete[] hospital->citas;
-
-    // 6. Liberar estructura de Hospital
-    delete hospital;
+    return d.activo && d.idDoctor == id;
 }
 
+bool leerCitaPorId(int id, Cita& c) {
+    if (id <= 0) return false;
+    fstream archivo(ARCHIVO_CITAS, ios::binary | ios::in);
+    if (!archivo.is_open()) return false;
 
+    long pos = calcularPosicion(id, sizeof(Cita));
 
-
-
-Doctor* buscarDoctorPorId(Hospital* hospital, int id) {
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        if (hospital->doctores[i].id == id) {
-            return &hospital->doctores[i];
-        }
-    }
-    return nullptr;
-}
-
-
-Doctor* buscarDoctorPorCedula(Hospital* hospital, const char* cedula) {
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        // Asume que la cédula profesional ya está saneada (mayúsculas/minúsculas)
-        if (strcmp(hospital->doctores[i].cedulaProfesional, cedula) == 0) {
-            return &hospital->doctores[i];
-        }
-    }
-    return nullptr;
-}
-
-
-bool removerId(int* array, int* cantidad, int id) {
-    if (array == nullptr || *cantidad == 0) return false;
-
-    int indiceEncontrado = -1;
-    for (int i = 0; i < *cantidad; ++i) {
-        if (array[i] == id) {
-            indiceEncontrado = i;
-            break;
-        }
+    archivo.seekg(0, ios::end);
+    long tamArchivo = archivo.tellg();
+    if (pos >= tamArchivo) {
+        archivo.close();
+        return false;
     }
 
-    if (indiceEncontrado != -1) {
-        for (int i = indiceEncontrado; i < *cantidad - 1; ++i) {
-            array[i] = array[i + 1];
-        }
-        (*cantidad)--;
-        return true;
+    archivo.seekg(pos);
+    if (archivo.read(reinterpret_cast<char*>(&c), sizeof(Cita))) {
+        archivo.close();
+        return c.activo;
     }
+    archivo.close();
     return false;
 }
 
 
+// =================================================================
+// 3. RUTINAS DE MANTENIMIENTO DE ARCHIVOS
+// =================================================================
 
-Doctor* crearDoctor(Hospital* hospital, const char* nombre, const char* apellido, const char* cedula,
-                    const char* especialidad, int aniosExperiencia, float costoConsulta) {
+
+bool verificarCitaActiva(int id) {
+    if (id <= 0) return false;
+    Cita c;
+    return leerCitaPorId(id, c) && c.activo;
+}
+
+
+void printIntegrityReport(const char* level, const char* entity, int id, const char* message) {
+    cout << "[" << level << "][" << entity << " ID " << id << "]: " << message << endl;
+}
+
+
+void verificarIntegridadArchivos(Hospital* h) {
+    cout << "\n========================================" << endl;
+    cout << "  VERIFICACIÓN DE INTEGRIDAD DE ARCHIVOS" << endl;
+    cout << "========================================" << endl;
     
-    // 1. Validación de unicidad de cédula
-    if (buscarDoctorPorCedula(hospital, cedula) != nullptr) {
-        cout << "ERROR: La cedula profesional " << cedula << " ya esta registrada." << endl;
-        return nullptr;
+    // 1. Verificar Archivo de Pacientes
+    cout << "\n--- Verificando Pacientes (" << ARCHIVO_PACIENTES << ") ---" << endl;
+    fstream archPacientes(ARCHIVO_PACIENTES, ios::binary | ios::in);
+    if (!archPacientes.is_open()) {
+        cerr << "ADVERTENCIA: Archivo de Pacientes no existe o no se pudo abrir." << endl;
+    } else {
+        Paciente p;
+        int registrosEncontrados = 0;
+        for (int i = 1; i <= h->ultimoIdPaciente; ++i) {
+            long pos = calcularPosicion(i, sizeof(Paciente));
+            archPacientes.seekg(pos);
+            if (archPacientes.read(reinterpret_cast<char*>(&p), sizeof(Paciente))) {
+                if (p.idPaciente != i) {
+                    printIntegrityReport("ERROR", "Paciente", i, "ID no coincide con posicion.");
+                }
+                if (p.activo) {
+                    registrosEncontrados++;
+                    // 1.1. Verificar referencias a Citas (en archivo de Citas)
+                    for (int j = 0; j < p.numCitas; ++j) {
+                        if (!verificarCitaActiva(p.idCitas[j])) {
+                     //       printIntegrityReport("WARN", "Paciente", p.idPaciente, 
+                    //            "Cita referenciada (" + to_string(p.idCitas[j]) + ") no existe o está inactiva.");
+                    cout << "VERIFICAR INTEGRIDAD ARCHIVO CITAS";
+                        }
+                    }
+                    // 1.2. No podemos verificar Historial, solo su doctor:
+                    for (int j = 0; j < p.numHistorial; ++j) {
+                        if (p.historial[j].activo && !verificarDoctorActivo(p.historial[j].idDoctor)) {
+                        //    printIntegrityReport("WARN", "Paciente", p.idPaciente, 
+                          //      "Doctor de Historial (" + to_string(p.historial[j].idDoctor) + ") no existe o está inactivo.");
+                          cout << "VERIFICAR INTEGRIDAD ARCHIVO DOCTOR";
+                        }
+                    }
+                }
+            } else {
+                printIntegrityReport("ERROR", "Paciente", i, "Fallo al leer registro en posición esperada.");
+            }
+        }
+        archPacientes.close();
+        if (registrosEncontrados != h->totalPacientes) {
+            // printIntegrityReport("ERROR", "Hospital", 0, 
+              //  "Contador 'totalPacientes' (" + to_string(h->totalPacientes) + ") no coincide con registros activos (" + to_string(registrosEncontrados) + ").");
+              cout << "NO COINCIDE EL TOTAL DE PACIENTES CON LOS REGISTROS";
+        }
     }
-    
-    // 2. Redimensionar si el array está lleno
-    if (hospital->cantidadDoctores >= hospital->capacidadDoctores) {
-        redimensionarArrayDoctores(hospital);
-        if (hospital->cantidadDoctores >= hospital->capacidadDoctores) { // Error de redimensionamiento
-            cerr << "ERROR: Fallo el redimensionamiento de doctores." << endl;
-            return nullptr;
+
+    // 2. Verificar Archivo de Doctores
+    cout << "\n--- Verificando Doctores (" << ARCHIVO_DOCTORES << ") ---" << endl;
+    fstream archDoctores(ARCHIVO_DOCTORES, ios::binary | ios::in);
+    if (!archDoctores.is_open()) {
+        cerr << "ADVERTENCIA: Archivo de Doctores no existe o no se pudo abrir." << endl;
+    } else {
+        Doctor d;
+        int registrosEncontrados = 0;
+        for (int i = 1; i <= h->ultimoIdDoctor; ++i) {
+            long pos = calcularPosicion(i, sizeof(Doctor));
+            archDoctores.seekg(pos);
+            if (archDoctores.read(reinterpret_cast<char*>(&d), sizeof(Doctor))) {
+                if (d.idDoctor != i) {
+                    printIntegrityReport("ERROR", "Doctor", i, "ID no coincide con posición.");
+                }
+                if (d.activo) {
+                    registrosEncontrados++;
+                    // 2.1. Verificar referencias a Pacientes Asignados
+                    for (int j = 0; j < d.numPacientesAsignados; ++j) {
+                        if (!verificarPacienteActivo(d.idPacientesAsignados[j])) {
+                            //printIntegrityReport("WARN", "Doctor", d.idDoctor, 
+                              //  "Paciente asignado (" + to_string(d.idPacientesAsignados[j]) + ") no existe o está inactivo.");
+                              cout << "VERIFICAR PACIENTE ACTIVO";
+                        }
+                    }
+                     // 2.2. Verificar referencias a Citas (en archivo de Citas)
+                    for (int j = 0; j < d.numCitas; ++j) {
+                        if (!verificarCitaActiva(d.idCitas[j])) {
+                          //  printIntegrityReport("WARN", "Doctor", d.idCitas[j], 
+                            //    "Cita referenciada (" + to_string(d.idCitas[j]) + ") no existe o está inactiva.");
+                            cout << "VERIFICAR CITA ACTIVA";
+                        }
+                    }
+                }
+            } else {
+                printIntegrityReport("ERROR", "Doctor", i, "Fallo al leer registro en posición esperada.");
+            }
+        }
+        archDoctores.close();
+        if (registrosEncontrados != h->totalDoctores) {
+            // printIntegrityReport("ERROR", "Hospital", 0, 
+              //  "Contador 'totalDoctores' (" + to_string(h->totalDoctores) + ") no coincide con registros activos (" + to_string(registrosEncontrados) + ").");
+              cout << "TOTAL DOCTORES NO COINCIDE CON LOS REGISTROS";
         }
     }
     
+    // 3. Verificar Archivo de Citas
+    cout << "\n--- Verificando Citas (" << ARCHIVO_CITAS << ") ---" << endl;
+    fstream archCitas(ARCHIVO_CITAS, ios::binary | ios::in);
+    if (!archCitas.is_open()) {
+        cerr << "ADVERTENCIA: Archivo de Citas no existe o no se pudo abrir." << endl;
+    } else {
+        Cita c;
+        int registrosEncontrados = 0;
+        for (int i = 1; i <= h->ultimoIdCita; ++i) {
+            long pos = calcularPosicion(i, sizeof(Cita));
+            archCitas.seekg(pos);
+            if (archCitas.read(reinterpret_cast<char*>(&c), sizeof(Cita))) {
+                if (c.idCita != i) {
+                    printIntegrityReport("ERROR", "Cita", i, "ID no coincide con posición.");
+                }
+                if (c.activo) {
+                    registrosEncontrados++;
+                    // 3.1. Verificar referencias a Paciente
+                    if (!verificarPacienteActivo(c.idPaciente)) {
+                     //   printIntegrityReport("ERROR", "Cita", c.idCita, 
+                       //     "Paciente referenciado (" + to_string(c.idPaciente) + ") no existe o está inactivo.");
+                       cout << "VERIFICAR PACIENTE ACTIVO";
+                    }
+                    // 3.2. Verificar referencias a Doctor
+                    if (!verificarDoctorActivo(c.idDoctor)) {
+                       // printIntegrityReport("ERROR", "Cita", c.idCita, 
+                         //   "Doctor referenciado (" + to_string(c.idDoctor) + ") no existe o está inactivo.");
+                         cout << "VERIFICAR DOCTOR ACTIVO";
+                    }
+                }
+            } else {
+                printIntegrityReport("ERROR", "Cita", i, "Fallo al leer registro en posición esperada.");
+            }
+        }
+        archCitas.close();
+        if (registrosEncontrados != h->totalCitas) {
+            // printIntegrityReport("ERROR", "Hospital", 0, 
+               // "Contador 'totalCitas' (" + to_string(h->totalCitas) + ") no coincide con registros activos (" + to_string(registrosEncontrados) + ").");
+               cout << "TOTAL CITAS NO COINCIDE CON LOS REGISTROS";
+        }
+    }
+
+    cout << "\nVerificación de integridad completada. Revise los mensajes de error/advertencia." << endl;
+}
+
+void actualizarReferencias(const char* entidadCompactada, int idMapping[], int ultimoIdPaciente, int ultimoIdDoctor, int ultimoIdCita) {
+    // 1. Si se compactó Pacientes, actualizar referencias en Doctores y Citas
+    if (strcmp(entidadCompactada, "Paciente") == 0) {
+        // Actualizar Doctores
+        fstream archDoctores(ARCHIVO_DOCTORES, ios::binary | ios::in | ios::out);
+        Doctor d;
+        for (int i = 1; i <= ultimoIdDoctor; ++i) {
+            long pos = calcularPosicion(i, sizeof(Doctor));
+            archDoctores.seekg(pos);
+            if (archDoctores.read(reinterpret_cast<char*>(&d), sizeof(Doctor)) && d.activo) {
+                bool modificado = false;
+                // Actualizar idPacientesAsignados
+                for (int j = 0; j < d.numPacientesAsignados; ++j) {
+                    int oldId = d.idPacientesAsignados[j];
+                    if (oldId > 0 && idMapping[oldId] != 0) { // Si el paciente sigue activo
+                        if (idMapping[oldId] != oldId) {
+                            d.idPacientesAsignados[j] = idMapping[oldId];
+                            modificado = true;
+                        }
+                    } else if (oldId > 0 && idMapping[oldId] == 0) { // Si el paciente fue eliminado
+                        // Eliminación física (moviendo elementos)
+                        for (int k = j; k < d.numPacientesAsignados - 1; ++k) {
+                            d.idPacientesAsignados[k] = d.idPacientesAsignados[k + 1];
+                        }
+                        d.numPacientesAsignados--;
+                        j--; // Volver a revisar el índice actual
+                        modificado = true;
+                    }
+                }
+
+                if (modificado) {
+                    archDoctores.seekp(pos);
+                    archDoctores.write(reinterpret_cast<const char*>(&d), sizeof(Doctor));
+                }
+            }
+        }
+        archDoctores.close();
+
+        // Actualizar Citas
+        fstream archCitas(ARCHIVO_CITAS, ios::binary | ios::in | ios::out);
+        Cita c;
+        for (int i = 1; i <= ultimoIdCita; ++i) {
+            long pos = calcularPosicion(i, sizeof(Cita));
+            archCitas.seekg(pos);
+            if (archCitas.read(reinterpret_cast<char*>(&c), sizeof(Cita)) && c.activo) {
+                int oldId = c.idPaciente;
+                if (oldId > 0 && idMapping[oldId] != 0) {
+                    if (idMapping[oldId] != oldId) {
+                        c.idPaciente = idMapping[oldId];
+                        archCitas.seekp(pos);
+                        archCitas.write(reinterpret_cast<const char*>(&c), sizeof(Cita));
+                    }
+                }
+                // Si la cita referencia a un paciente eliminado, la cita debe ser cancelada/eliminada
+                else if (oldId > 0 && idMapping[oldId] == 0) {
+                    c.activo = false; // Eliminación lógica de la cita
+                    archCitas.seekp(pos);
+                    archCitas.write(reinterpret_cast<const char*>(&c), sizeof(Cita));
+                    // Nota: Se debe actualizar el contador de citas en Hospital, pero esto se hará
+                    // en la compactación de Citas.
+                }
+            }
+        }
+        archCitas.close();
+    }
+    
+    // 2. Si se compactó Doctores, actualizar referencias en Pacientes y Citas
+    else if (strcmp(entidadCompactada, "Doctor") == 0) {
+        // Actualizar Pacientes (Historial)
+        fstream archPacientes(ARCHIVO_PACIENTES, ios::binary | ios::in | ios::out);
+        Paciente p;
+        for (int i = 1; i <= ultimoIdPaciente; ++i) {
+            long pos = calcularPosicion(i, sizeof(Paciente));
+            archPacientes.seekg(pos);
+            if (archPacientes.read(reinterpret_cast<char*>(&p), sizeof(Paciente)) && p.activo) {
+                bool modificado = false;
+                for (int j = 0; j < p.numHistorial; ++j) {
+                    int oldId = p.historial[j].idDoctor;
+                    if (oldId > 0 && idMapping[oldId] != 0) {
+                        if (idMapping[oldId] != oldId) {
+                            p.historial[j].idDoctor = idMapping[oldId];
+                            modificado = true;
+                        }
+                    } else if (oldId > 0 && idMapping[oldId] == 0) {
+                        // Si el doctor fue eliminado, se marca la entrada de historial como inactiva
+                        p.historial[j].activo = false;
+                        modificado = true;
+                    }
+                }
+                
+                if (modificado) {
+                    archPacientes.seekp(pos);
+                    archPacientes.write(reinterpret_cast<const char*>(&p), sizeof(Paciente));
+                }
+            }
+        }
+        archPacientes.close();
+
+        // Actualizar Citas
+        fstream archCitas(ARCHIVO_CITAS, ios::binary | ios::in | ios::out);
+        Cita c;
+        for (int i = 1; i <= ultimoIdCita; ++i) {
+            long pos = calcularPosicion(i, sizeof(Cita));
+            archCitas.seekg(pos);
+            if (archCitas.read(reinterpret_cast<char*>(&c), sizeof(Cita)) && c.activo) {
+                int oldId = c.idDoctor;
+                if (oldId > 0 && idMapping[oldId] != 0) {
+                    if (idMapping[oldId] != oldId) {
+                        c.idDoctor = idMapping[oldId];
+                        archCitas.seekp(pos);
+                        archCitas.write(reinterpret_cast<const char*>(&c), sizeof(Cita));
+                    }
+                }
+                // Si la cita referencia a un doctor eliminado, la cita debe ser cancelada/eliminada
+                else if (oldId > 0 && idMapping[oldId] == 0) {
+                    c.activo = false; // Eliminación lógica de la cita
+                    archCitas.seekp(pos);
+                    archCitas.write(reinterpret_cast<const char*>(&c), sizeof(Cita));
+                }
+            }
+        }
+        archCitas.close();
+    }
+    
+    // 3. Si se compactó Citas, actualizar referencias en Pacientes y Doctores
+    else if (strcmp(entidadCompactada, "Cita") == 0) {
+        // Actualizar Pacientes
+        fstream archPacientes(ARCHIVO_PACIENTES, ios::binary | ios::in | ios::out);
+        Paciente p;
+        for (int i = 1; i <= ultimoIdPaciente; ++i) {
+            long pos = calcularPosicion(i, sizeof(Paciente));
+            archPacientes.seekg(pos);
+            if (archPacientes.read(reinterpret_cast<char*>(&p), sizeof(Paciente)) && p.activo) {
+                bool modificado = false;
+                // Actualizar idCitas
+                for (int j = 0; j < p.numCitas; ++j) {
+                    int oldId = p.idCitas[j];
+                    if (oldId > 0 && idMapping[oldId] != 0) {
+                        if (idMapping[oldId] != oldId) {
+                            p.idCitas[j] = idMapping[oldId];
+                            modificado = true;
+                        }
+                    } else if (oldId > 0 && idMapping[oldId] == 0) {
+                        // Eliminación física
+                        for (int k = j; k < p.numCitas - 1; ++k) {
+                            p.idCitas[k] = p.idCitas[k + 1];
+                        }
+                        p.numCitas--;
+                        j--;
+                        modificado = true;
+                    }
+                }
+                
+                if (modificado) {
+                    archPacientes.seekp(pos);
+                    archPacientes.write(reinterpret_cast<const char*>(&p), sizeof(Paciente));
+                }
+            }
+        }
+        archPacientes.close();
+
+        // Actualizar Doctores
+        fstream archDoctores(ARCHIVO_DOCTORES, ios::binary | ios::in | ios::out);
+        Doctor d;
+        for (int i = 1; i <= ultimoIdDoctor; ++i) {
+            long pos = calcularPosicion(i, sizeof(Doctor));
+            archDoctores.seekg(pos);
+            if (archDoctores.read(reinterpret_cast<char*>(&d), sizeof(Doctor)) && d.activo) {
+                bool modificado = false;
+                // Actualizar idCitas
+                for (int j = 0; j < d.numCitas; ++j) {
+                    int oldId = d.idCitas[j];
+                    if (oldId > 0 && idMapping[oldId] != 0) {
+                        if (idMapping[oldId] != oldId) {
+                            d.idCitas[j] = idMapping[oldId];
+                            modificado = true;
+                        }
+                    } else if (oldId > 0 && idMapping[oldId] == 0) {
+                        // Eliminación física
+                        for (int k = j; k < d.numCitas - 1; ++k) {
+                            d.idCitas[k] = d.idCitas[k + 1];
+                        }
+                        d.numCitas--;
+                        j--;
+                        modificado = true;
+                    }
+                }
+
+                if (modificado) {
+                    archDoctores.seekp(pos);
+                    archDoctores.write(reinterpret_cast<const char*>(&d), sizeof(Doctor));
+                }
+            }
+        }
+        archDoctores.close();
+    }
+}
+
+
+
+template <typename T>
+void compactarArchivo(Hospital* h, const char* nombreArchivo, int& ultimoId, int& totalRegistros, const char* entidad) {
+    
+    // 1. Crear un archivo temporal para la copia de registros activos
+    string tempFileName = string(nombreArchivo) + ".tmp";
+    fstream tempFile(tempFileName.c_str(), ios::binary | ios::out | ios::trunc);
+    fstream originalFile(nombreArchivo, ios::binary | ios::in);
+
+    if (!originalFile.is_open()) {
+        cout << "ADVERTENCIA: Archivo de " << entidad << " no existe o está vacío. No hay nada que compactar." << endl;
+        return;
+    }
+    if (!tempFile.is_open()) {
+        cerr << "ERROR: No se pudo crear el archivo temporal para compactación." << endl;
+        originalFile.close();
+        return;
+    }
+
+    cout << "Compactando archivo de " << entidad << " (" << nombreArchivo << ")..." << endl;
+    
+    T record;
+    int nuevoId = 1;
+    int registrosCompactados = 0;
+    
+    // Mapeo de ID antiguo a ID nuevo
+    // Usaremos un array simple, asumiendo que el ID no será exorbitantemente grande
+    int idMapping[ultimoId + 1];
+    for (int i = 0; i <= ultimoId; ++i) idMapping[i] = 0;
+
+    // 2. Recorrer el archivo original, reescribiendo solo activos en el temporal
+    for (int oldId = 1; oldId <= ultimoId; ++oldId) {
+        long pos = calcularPosicion(oldId, sizeof(T));
+        originalFile.seekg(pos);
+        
+        if (originalFile.read(reinterpret_cast<char*>(&record), sizeof(T))) {
+            bool activo = false;
+            // Detección de activo (usando un truco simple para acceder al miembro 'activo')
+            if (entidad == "Paciente") {
+                activo = ((Paciente*)&record)->activo;
+                ((Paciente*)&record)->idPaciente = nuevoId;
+            } else if (entidad == "Doctor") {
+                activo = ((Doctor*)&record)->activo;
+                ((Doctor*)&record)->idDoctor = nuevoId;
+            } else if (entidad == "Cita") {
+                activo = ((Cita*)&record)->activo;
+                ((Cita*)&record)->idCita = nuevoId;
+            }
+
+            if (activo) {
+                // Escribir en el archivo temporal con el nuevo ID
+                tempFile.write(reinterpret_cast<const char*>(&record), sizeof(T));
+                
+                // Guardar mapeo
+                idMapping[oldId] = nuevoId;
+                nuevoId++;
+                registrosCompactados++;
+            } else {
+                 idMapping[oldId] = 0; // Marcar como eliminado
+            }
+        }
+    }
+    
+    originalFile.close();
+    tempFile.close();
+    
+    // 3. Eliminar archivo original y renombrar el temporal
+    if (remove(nombreArchivo) != 0) {
+        cerr << "ERROR: No se pudo eliminar el archivo original " << nombreArchivo << endl;
+        return;
+    }
+    if (rename(tempFileName.c_str(), nombreArchivo) != 0) {
+        cerr << "ERROR: No se pudo renombrar el archivo temporal a " << nombreArchivo << endl;
+        return;
+    }
+
+    // 4. Actualizar contadores del Hospital
+    ultimoId = registrosCompactados;
+    totalRegistros = registrosCompactados;
+    cout << "Compactación exitosa. Total de " << entidad << "s activos: " << totalRegistros << endl;
+    guardarDatosHospital(h);
+    
+    // 5. Actualizar referencias cruzadas en otros archivos
+    cout << "Actualizando referencias cruzadas..." << endl;
+    actualizarReferencias(entidad, idMapping, h->ultimoIdPaciente, h->ultimoIdDoctor, h->ultimoIdCita);
+}
+
+
+void compactarArchivo(Hospital* h, const char* nombreArchivo, int& ultimoId, int& totalRegistros, const char* entidad) {
+    
+    // 1. Crear un archivo temporal para la copia de registros activos
+    string tempFileName = string(nombreArchivo) + ".tmp";
+    fstream tempFile(tempFileName.c_str(), ios::binary | ios::out | ios::trunc);
+    fstream originalFile(nombreArchivo, ios::binary | ios::in);
+
+    if (!originalFile.is_open()) {
+        cout << "ADVERTENCIA: Archivo de " << entidad << " no existe o está vacío. No hay nada que compactar." << endl;
+        return;
+    }
+    if (!tempFile.is_open()) {
+        cerr << "ERROR: No se pudo crear el archivo temporal para compactación." << endl;
+        originalFile.close();
+        return;
+    }
+
+    cout << "Compactando archivo de " << entidad << " (" << nombreArchivo << ")..." << endl;
+    
+    T record;
+    int nuevoId = 1;
+    int registrosCompactados = 0;
+    
+    // Mapeo de ID antiguo a ID nuevo
+    // Usaremos un array simple, asumiendo que el ID no será exorbitantemente grande
+    int idMapping[ultimoId + 1];
+    for (int i = 0; i <= ultimoId; ++i) idMapping[i] = 0;
+
+    // 2. Recorrer el archivo original, reescribiendo solo activos en el temporal
+    for (int oldId = 1; oldId <= ultimoId; ++oldId) {
+        long pos = calcularPosicion(oldId, sizeof(T));
+        originalFile.seekg(pos);
+        
+        if (originalFile.read(reinterpret_cast<char*>(&record), sizeof(T))) {
+            bool activo = false;
+            // Detección de activo (usando un truco simple para acceder al miembro 'activo')
+            if (entidad == "Paciente") {
+                activo = ((Paciente*)&record)->activo;
+                ((Paciente*)&record)->idPaciente = nuevoId;
+            } else if (entidad == "Doctor") {
+                activo = ((Doctor*)&record)->activo;
+                ((Doctor*)&record)->idDoctor = nuevoId;
+            } else if (entidad == "Cita") {
+                activo = ((Cita*)&record)->activo;
+                ((Cita*)&record)->idCita = nuevoId;
+            }
+
+            if (activo) {
+                // Escribir en el archivo temporal con el nuevo ID
+                tempFile.write(reinterpret_cast<const char*>(&record), sizeof(T));
+                
+                // Guardar mapeo
+                idMapping[oldId] = nuevoId;
+                nuevoId++;
+                registrosCompactados++;
+            } else {
+                 idMapping[oldId] = 0; // Marcar como eliminado
+            }
+        }
+    }
+    
+    originalFile.close();
+    tempFile.close();
+    
+    // 3. Eliminar archivo original y renombrar el temporal
+    if (remove(nombreArchivo) != 0) {
+        cerr << "ERROR: No se pudo eliminar el archivo original " << nombreArchivo << endl;
+        return;
+    }
+    if (rename(tempFileName.c_str(), nombreArchivo) != 0) {
+        cerr << "ERROR: No se pudo renombrar el archivo temporal a " << nombreArchivo << endl;
+        return;
+    }
+
+    // 4. Actualizar contadores del Hospital
+    ultimoId = registrosCompactados;
+    totalRegistros = registrosCompactados;
+    cout << "Compactación exitosa. Total de " << entidad << "s activos: " << totalRegistros << endl;
+    guardarDatosHospital(h);
+    
+    // 5. Actualizar referencias cruzadas en otros archivos
+    cout << "Actualizando referencias cruzadas..." << endl;
+    actualizarReferencias(entidad, idMapping, h->ultimoIdPaciente, h->ultimoIdDoctor, h->ultimoIdCita);
+}
+
+void compactarArchivo(Hospital* h, const char* nombreArchivo, int& ultimoId, int& totalRegistros, const char* entidad) {
+    
+    // 1. Crear un archivo temporal para la copia de registros activos
+    string tempFileName = string(nombreArchivo) + ".tmp";
+    fstream tempFile(tempFileName.c_str(), ios::binary | ios::out | ios::trunc);
+    fstream originalFile(nombreArchivo, ios::binary | ios::in);
+
+    if (!originalFile.is_open()) {
+        cout << "ADVERTENCIA: Archivo de " << entidad << " no existe o está vacío. No hay nada que compactar." << endl;
+        return;
+    }
+    if (!tempFile.is_open()) {
+        cerr << "ERROR: No se pudo crear el archivo temporal para compactación." << endl;
+        originalFile.close();
+        return;
+    }
+
+    cout << "Compactando archivo de " << entidad << " (" << nombreArchivo << ")..." << endl;
+    
+    T record;
+    int nuevoId = 1;
+    int registrosCompactados = 0;
+    
+    // Mapeo de ID antiguo a ID nuevo
+    // Usaremos un array simple, asumiendo que el ID no será exorbitantemente grande
+    int idMapping[ultimoId + 1];
+    for (int i = 0; i <= ultimoId; ++i) idMapping[i] = 0;
+
+    // 2. Recorrer el archivo original, reescribiendo solo activos en el temporal
+    for (int oldId = 1; oldId <= ultimoId; ++oldId) {
+        long pos = calcularPosicion(oldId, sizeof(T));
+        originalFile.seekg(pos);
+        
+        if (originalFile.read(reinterpret_cast<char*>(&record), sizeof(T))) {
+            bool activo = false;
+            // Detección de activo (usando un truco simple para acceder al miembro 'activo')
+            if (entidad == "Paciente") {
+                activo = ((Paciente*)&record)->activo;
+                ((Paciente*)&record)->idPaciente = nuevoId;
+            } else if (entidad == "Doctor") {
+                activo = ((Doctor*)&record)->activo;
+                ((Doctor*)&record)->idDoctor = nuevoId;
+            } else if (entidad == "Cita") {
+                activo = ((Cita*)&record)->activo;
+                ((Cita*)&record)->idCita = nuevoId;
+            }
+
+            if (activo) {
+                // Escribir en el archivo temporal con el nuevo ID
+                tempFile.write(reinterpret_cast<const char*>(&record), sizeof(T));
+                
+                // Guardar mapeo
+                idMapping[oldId] = nuevoId;
+                nuevoId++;
+                registrosCompactados++;
+            } else {
+                 idMapping[oldId] = 0; // Marcar como eliminado
+            }
+        }
+    }
+    
+    originalFile.close();
+    tempFile.close();
+    
+    // 3. Eliminar archivo original y renombrar el temporal
+    if (remove(nombreArchivo) != 0) {
+        cerr << "ERROR: No se pudo eliminar el archivo original " << nombreArchivo << endl;
+        return;
+    }
+    if (rename(tempFileName.c_str(), nombreArchivo) != 0) {
+        cerr << "ERROR: No se pudo renombrar el archivo temporal a " << nombreArchivo << endl;
+        return;
+    }
+
+    // 4. Actualizar contadores del Hospital
+    ultimoId = registrosCompactados;
+    totalRegistros = registrosCompactados;
+    cout << "Compactación exitosa. Total de " << entidad << "s activos: " << totalRegistros << endl;
+    guardarDatosHospital(h);
+    
+    // 5. Actualizar referencias cruzadas en otros archivos
+    cout << "Actualizando referencias cruzadas..." << endl;
+    actualizarReferencias(entidad, idMapping, h->ultimoIdPaciente, h->ultimoIdDoctor, h->ultimoIdCita);
+}
+
+void mantenimientoArchivos(Hospital* h) {
+    int opcion;
+    do {
+        cout << "\n========================================" << endl;
+        cout << "   SUBMENÚ MANTENIMIENTO DE ARCHIVOS" << endl;
+        cout << "========================================" << endl;
+        cout << "1. Verificar integridad de archivos" << endl;
+        cout << "2. Compactar archivos (Pacientes)" << endl;
+        cout << "3. Compactar archivos (Doctores)" << endl;
+        cout << "4. Compactar archivos (Citas)" << endl;
+        cout << "0. Volver al menú principal" << endl;
+        cout << "Opción: ";
+
+        if (!(cin >> opcion)) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            opcion = -1;
+        }
+
+        switch (opcion) {
+            case 1:
+                verificarIntegridadArchivos(h);
+                break;
+            case 2:
+                // Compactar Pacientes
+                compactarArchivo<Paciente>(h, ARCHIVO_PACIENTES, h->ultimoIdPaciente, h->totalPacientes, "Paciente");
+                break;
+            case 3:
+                // Compactar Doctores
+                compactarArchivo<Doctor>(h, ARCHIVO_DOCTORES, h->ultimoIdDoctor, h->totalDoctores, "Doctor");
+                break;
+            case 4:
+                // Compactar Citas
+                compactarArchivo<Cita>(h, ARCHIVO_CITAS, h->ultimoIdCita, h->totalCitas, "Cita");
+                break;
+            case 0:
+                cout << "Volviendo al menú principal." << endl;
+                break;
+            default:
+                cout << "Opción no válida. Intente de nuevo." << endl;
+                break;
+        }
+    } while (opcion != 0);
+}
+
+bool leerPacientePorId(int id, Paciente& p) {
+    if (id <= 0) return false;
+    fstream archivo(ARCHIVO_PACIENTES, ios::binary | ios::in);
+    if (!archivo.is_open()) return false;
+    
+    long pos = calcularPosicion(id, sizeof(Paciente));
+    
+    // Opcional: Verificar que la posición no esté fuera de límites antes de buscar
+    archivo.seekg(0, ios::end);
+    long tamArchivo = archivo.tellg();
+    if (pos >= tamArchivo) {
+        archivo.close();
+        return false;
+    }
+
+    archivo.seekg(pos);
+    if (archivo.read(reinterpret_cast<char*>(&p), sizeof(Paciente))) {
+        archivo.close();
+        return p.activo;
+    }
+    archivo.close();
+    return false;
+}
+
+
+bool escribirPaciente(Paciente& p, Hospital* h) {
+    bool esNuevo = (p.idPaciente == 0);
+    fstream archivo(ARCHIVO_PACIENTES, ios::binary | ios::in | ios::out | ios::ate);
+    
+    if (!archivo.is_open()) {
+        // Si no existe, intentar crear
+        archivo.open(ARCHIVO_PACIENTES, ios::binary | ios::out);
+        if (!archivo.is_open()) {
+             cerr << "ERROR: No se pudo abrir/crear el archivo de pacientes." << endl;
+             return false;
+        }
+    }
+ long pos;
+    if (esNuevo) {
+        h->ultimoIdPaciente++;
+        p.idPaciente = h->ultimoIdPaciente;
+        p.activo = true;
+        p.numHistorial = 0;
+        p.numCitas = 0;
+        h->totalPacientes++;
+        pos = calcularPosicion(p.idPaciente, sizeof(Paciente));
+        // Moverse al final teórico (aunque ya estamos en ios::ate)
+        archivo.seekp(pos);
+    } else {
+        pos = calcularPosicion(p.idPaciente, sizeof(Paciente));
+        archivo.seekp(pos);
+    }
+    
+    archivo.write(reinterpret_cast<const char*>(&p), sizeof(Paciente));
+    archivo.close();
+    
+    if (esNuevo) {
+        guardarDatosHospital(h); // Guardar el nuevo ID y contador
+    }
+    
+    return true;
+}
+bool leerDoctorPorId(int id, Doctor& d) {
+    if (id <= 0) return false;
+    fstream archivo(ARCHIVO_DOCTORES, ios::binary | ios::in);
+    if (!archivo.is_open()) return false;
+
+    long pos = calcularPosicion(id, sizeof(Doctor));
+
+    archivo.seekg(0, ios::end);
+    long tamArchivo = archivo.tellg();
+    if (pos >= tamArchivo) {
+        archivo.close();
+        return false;
+    }
+    
+    archivo.seekg(pos);
+    if (archivo.read(reinterpret_cast<char*>(&d), sizeof(Doctor))) {
+        archivo.close();
+        return d.activo;
+    }
+    archivo.close();
+    return false;
+}
+
+bool escribirDoctor(Doctor& d, Hospital* h) {
+    bool esNuevo = (d.idDoctor == 0);
+    fstream archivo(ARCHIVO_DOCTORES, ios::binary | ios::in | ios::out | ios::ate);
+    
+    if (!archivo.is_open()) {
+        archivo.open(ARCHIVO_DOCTORES, ios::binary | ios::out);
+        if (!archivo.is_open()) {
+             cerr << "ERROR: No se pudo abrir/crear el archivo de doctores." << endl;
+             return false;
+        }
+    }
+    ////////
+
     // 3. Asignar ID y obtener puntero a la nueva posición
     Doctor* nuevoDoctor = &hospital->doctores[hospital->cantidadDoctores];
     nuevoDoctor->id = hospital->siguienteIdDoctor++;
     
-    // 4. Copiar datos y validaciones
-    strncpy(nuevoDoctor->nombre, nombre, 50); nuevoDoctor->nombre[50] = '\0';
-    strncpy(nuevoDoctor->apellido, apellido, 50); nuevoDoctor->apellido[50] = '\0';
-    strncpy(nuevoDoctor->cedulaProfesional, cedula, 20); nuevoDoctor->cedulaProfesional[20] = '\0';
-    strncpy(nuevoDoctor->especialidad, especialidad, 50); nuevoDoctor->especialidad[50] = '\0';
-
-    nuevoDoctor->aniosExperiencia = aniosExperiencia < 0 ? 0 : aniosExperiencia;
-    nuevoDoctor->costoConsulta = costoConsulta <= 0 ? 1.0f : costoConsulta; // Asegurar > 0
-
-    // 5. Inicializar arrays dinámicos
-    nuevoDoctor->cantidadPacientesAsignados = 0;
-    nuevoDoctor->capacidadPacientesAsignados = CAPACIDAD_INICIAL_PACIENTES_DOCTOR;
-    nuevoDoctor->pacientesAsignados = new (std::nothrow) int[CAPACIDAD_INICIAL_PACIENTES_DOCTOR];
-
-    nuevoDoctor->cantidadCitasAgendadas = 0;
-    nuevoDoctor->capacidadCitasAgendadas = CAPACIDAD_INICIAL_CITAS_DOCTOR;
-    nuevoDoctor->citasAgendadas = new (std::nothrow) int[CAPACIDAD_INICIAL_CITAS_DOCTOR];
-    
-    // 6. Otros datos y estado
-    strcpy(nuevoDoctor->telefono, "N/A");
-    strcpy(nuevoDoctor->email, "N/A");
-    strcpy(nuevoDoctor->horarioAtencion, "N/A");
-    nuevoDoctor->disponible = true;
-
-    // 7. Incrementar contador del hospital
-    hospital->cantidadDoctores++;
-    
-    return nuevoDoctor;
-}
-
-
-Doctor** buscarDoctoresPorEspecialidad(Hospital* hospital, const char* especialidad, int* cantidad) {
-    *cantidad = 0;
-    if (hospital == nullptr || especialidad == nullptr) return nullptr;
-
-    char* especialidadLower = toLowerString(especialidad);
-    if (especialidadLower == nullptr) return nullptr;
-    
-    // Paso 1: Contar cuántos doctores cumplen
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        char* docEspecialidadLower = toLowerString(hospital->doctores[i].especialidad);
-        if (docEspecialidadLower != nullptr && strstr(docEspecialidadLower, especialidadLower) != nullptr) {
-            (*cantidad)++;
-        }
-        delete[] docEspecialidadLower;
+    long pos;
+    if (esNuevo) {
+        h->ultimoIdDoctor++;
+        d.idDoctor = h->ultimoIdDoctor;
+        d.activo = true;
+        d.numPacientesAsignados = 0;
+        d.numCitas = 0;
+        h->totalDoctores++;
+        pos = calcularPosicion(d.idDoctor, sizeof(Doctor));
+        archivo.seekp(pos);
+    } else {
+        pos = calcularPosicion(d.idDoctor, sizeof(Doctor));
+        archivo.seekp(pos);
     }
     
-    delete[] especialidadLower;
+    archivo.write(reinterpret_cast<const char*>(&d), sizeof(Doctor));
+    archivo.close();
 
-    // Paso 2: Si cantidad == 0, retornar nullptr
-    if (*cantidad == 0) return nullptr;
-
-    // Paso 3: Crear array dinámico de punteros
-    Doctor** resultados = new (std::nothrow) Doctor*[*cantidad];
-    if (resultados == nullptr) {
-        *cantidad = 0;
-        return nullptr;
+    if (esNuevo) {
+        guardarDatosHospital(h);
     }
-
-    // Paso 4: Llenar el array con punteros
-    int indiceResultados = 0;
-    especialidadLower = toLowerString(especialidad); // Recalcular
-    if (especialidadLower == nullptr) return nullptr;
     
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        char* docEspecialidadLower = toLowerString(hospital->doctores[i].especialidad);
-        if (docEspecialidadLower != nullptr && strstr(docEspecialidadLower, especialidadLower) != nullptr) {
-            resultados[indiceResultados++] = &hospital->doctores[i];
-        }
-        delete[] docEspecialidadLower;
-    }
-
-    delete[] especialidadLower;
-
-    return resultados;
-}
-
-
-bool asignarPacienteADoctor(Doctor* doctor, int idPaciente) {
-    if (doctor == nullptr || idPaciente <= 0) return false;
-
-    // Verificar si ya está asignado (evitar duplicados)
-    for (int i = 0; i < doctor->cantidadPacientesAsignados; ++i) {
-        if (doctor->pacientesAsignados[i] == idPaciente) {
-            return false; // Ya asignado
-        }
-    }
-
-    // Redimensionar si es necesario
-    if (doctor->cantidadPacientesAsignados >= doctor->capacidadPacientesAsignados) {
-        redimensionarArrayIds(&doctor->pacientesAsignados, &doctor->cantidadPacientesAsignados, &doctor->capacidadPacientesAsignados);
-        if (doctor->cantidadPacientesAsignados >= doctor->capacidadPacientesAsignados) { // Error de redimensionamiento
-            cerr << "ERROR: Fallo el redimensionamiento de pacientes asignados." << endl;
-            return false;
-        }
-    }
-
-    // Agregar ID
-    doctor->pacientesAsignados[doctor->cantidadPacientesAsignados++] = idPaciente;
     return true;
 }
 
-
-bool removerPacienteDeDoctor(Doctor* doctor, int idPaciente) {
-    if (doctor == nullptr || idPaciente <= 0) return false;
-
-    return removerId(doctor->pacientesAsignados, &doctor->cantidadPacientesAsignados, idPaciente);
-}
-
-Paciente* buscarPacientePorId(Hospital* hospital, int id) {
-    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
-        if (hospital->pacientes[i].id == id) {
-            return &hospital->pacientes[i];
+bool escribirCita(Cita& c, Hospital* h) {
+    bool esNuevo = (c.idCita == 0);
+    fstream archivo(ARCHIVO_CITAS, ios::binary | ios::in | ios::out | ios::ate);
+    
+    if (!archivo.is_open()) {
+        archivo.open(ARCHIVO_CITAS, ios::binary | ios::out);
+        if (!archivo.is_open()) {
+             cerr << "ERROR: No se pudo abrir/crear el archivo de citas." << endl;
+             return false;
         }
     }
-    return nullptr;
+
+    long pos;
+    if (esNuevo) {
+        h->ultimoIdCita++;
+        c.idCita = h->ultimoIdCita;
+        c.activo = true;
+        h->totalCitas++;
+        pos = calcularPosicion(c.idCita, sizeof(Cita));
+        archivo.seekp(pos);
+    } else {
+        pos = calcularPosicion(c.idCita, sizeof(Cita));
+        archivo.seekp(pos);
+    }
+    
+    archivo.write(reinterpret_cast<const char*>(&c), sizeof(Cita));
+    archivo.close();
+
+    if (esNuevo) {
+        guardarDatosHospital(h);
+    }
+    
+    return true;
 }
 
-void listarPacientesDeDoctor(Hospital* hospital, int idDoctor) {
-    Doctor* doctor = buscarDoctorPorId(hospital, idDoctor);
-    if (doctor == nullptr) {
-        cout << "ERROR: Doctor con ID " << idDoctor << " no encontrado." << endl;
+   int menuPrincipal() {
+    int opcion;
+    cout << "\n╔════════════════════════════════════════╗" << endl;
+    cout << "║   SISTEMA DE GESTIÓN HOSPITALARIA v2   ║" << endl;
+    cout << "║         (Persistencia con Archivos)    ║" << endl;
+    cout << "╚════════════════════════════════════════╝" << endl;
+    cout << "1. Gestión de Pacientes" << endl;
+    cout << "2. Gestión de Doctores" << endl;
+    cout << "3. Gestión de Citas" << endl;
+    cout << "4. Consultas y Reportes" << endl;
+    cout << "5. Mantenimiento de Archivos" << endl;
+    cout << "6. Guardar y Salir" << endl;
+    cout << "Opción: ";
+    if (!(cin >> opcion)) {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        return -1;
+    }
+    return opcion;
+}
+
+void limpiarBuffer() {
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+}
+
+void obtenerFechaActual(char* fecha) {
+    time_t now = time(0);
+    tm* ltm = localtime(&now);
+    sprintf(fecha, "%04d-%02d-%02d", 1900 + ltm->tm_year, 1 + ltm->tm_mon, ltm->tm_mday);
+}
+
+void mostrarPaciente(const Paciente& p) {
+    cout << "  -------------------------------------------------" << endl;
+    cout << "  ID: " << p.idPaciente << (p.activo ? "" : " (INACTIVO)") << endl;
+    cout << "  Nombre: " << p.nombre << " " << p.apellido << endl;
+    cout << "  Cédula: " << p.cedula << endl;
+    cout << "  Edad: " << p.edad << ", Sexo: " << p.sexo << endl;
+    cout << "  Citas Agendadas: " << p.numCitas << endl;
+    cout << "  Historial de Consultas: " << p.numHistorial << endl;
+    cout << "  -------------------------------------------------" << endl;
+}
+
+void crearPaciente(Hospital* h) {
+    Paciente p;
+    p.idPaciente = 0; // Marcar como nuevo registro
+
+    cout << "\n--- Registrar Nuevo Paciente ---" << endl;
+    cout << "Nombre: ";
+    limpiarBuffer();
+    cin.getline(p.nombre, 51);
+    cout << "Apellido: ";
+    cin.getline(p.apellido, 51);
+    cout << "Cédula: ";
+    cin.getline(p.cedula, 11);
+    cout << "Edad: ";
+    cin >> p.edad;
+    cout << "Sexo (M/F/O): ";
+    cin >> p.sexo;
+    p.sexo = toupper(p.sexo);
+    limpiarBuffer();
+
+    if (escribirPaciente(p, h)) {
+        cout << "\n✅ Paciente " << p.nombre << " registrado con ID: " << p.idPaciente << endl;
+    } else {
+        cout << "\n❌ ERROR al guardar el paciente en el archivo." << endl;
+    }
+}
+
+
+    void crearPaciente(Hospital* h, const char* nombre, const char* apellido, const char* cedula, int edad, char sexo) {
+    Paciente p;
+    p.idPaciente = 0;
+    strncpy(p.nombre, nombre, 51);
+    strncpy(p.apellido, apellido, 51);
+    strncpy(p.cedula, cedula, 11);
+    p.edad = edad;
+    p.sexo = toupper(sexo);
+    escribirPaciente(p, h);
+}
+    void buscarPacientePorCedula(Hospital* h) {
+    char cedula[11];
+    cout << "Ingrese la cédula del paciente a buscar: ";
+    limpiarBuffer();
+    cin.getline(cedula, 11);
+
+    fstream archivo(ARCHIVO_PACIENTES, ios::binary | ios::in);
+    if (!archivo.is_open()) {
+        cout << "❌ ERROR: Archivo de pacientes no disponible." << endl;
         return;
     }
+
+
+
+
+
 
     cout << "\n--- Pacientes Asignados a Dr. " << doctor->nombre << " " << doctor->apellido << " (ID: " << idDoctor << ") ---" << endl;
     if (doctor->cantidadPacientesAsignados == 0) {
