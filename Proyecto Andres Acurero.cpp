@@ -1229,36 +1229,85 @@ void crearPaciente(Hospital* h) {
         return;
     }
 
+ Paciente p;
+    bool encontrado = false;
+    
+    // Recorrido secuencial (ineficiente pero necesario sin indexación)
+    for (int i = 1; i <= h->ultimoIdPaciente; ++i) {
+        long pos = calcularPosicion(i, sizeof(Paciente));
+        archivo.seekg(pos);
+        if (archivo.read(reinterpret_cast<char*>(&p), sizeof(Paciente)) && p.activo) {
+            if (strcmp(p.cedula, cedula) == 0) {
+                mostrarPaciente(p);
+                encontrado = true;
+                break;
+            }
+        }
+    }
+    archivo.close();
 
+    if (!encontrado) {
+        cout << "\nPaciente con cédula " << cedula << " no encontrado o inactivo." << endl;
+    }
+}
 
+void buscarPacientePorNombre(Hospital* h) {
+    char nombreBuscar[51];
+    cout << "Ingrese el nombre/apellido parcial del paciente a buscar: ";
+    limpiarBuffer();
+    cin.getline(nombreBuscar, 51);
 
+    fstream archivo(ARCHIVO_PACIENTES, ios::binary | ios::in);
+    if (!archivo.is_open()) {
+        cout << "❌ ERROR: Archivo de pacientes no disponible." << endl;
+        return;
+    }
+    Paciente p;
+    bool encontrado = false;
+    
+    // Recorrido secuencial
+    for (int i = 1; i <= h->ultimoIdPaciente; ++i) {
+        long pos = calcularPosicion(i, sizeof(Paciente));
+        archivo.seekg(pos);
+        if (archivo.read(reinterpret_cast<char*>(&p), sizeof(Paciente)) && p.activo) {
+            // Convierte a minúsculas para la búsqueda sin distinción
+            char nombreLower[51], apellidoLower[51], buscarLower[51];
+            
+            // Copiar y convertir (lógica similar a la del código original)
+            for (int k = 0; p.nombre[k] && k < 50; ++k) nombreLower[k] = tolower(p.nombre[k]);
+            nombreLower[strlen(p.nombre)] = '\0';
+            
+            for (int k = 0; p.apellido[k] && k < 50; ++k) apellidoLower[k] = tolower(p.apellido[k]);
+            apellidoLower[strlen(p.apellido)] = '\0';
 
+            for (int k = 0; nombreBuscar[k] && k < 50; ++k) buscarLower[k] = tolower(nombreBuscar[k]);
+            buscarLower[strlen(nombreBuscar)] = '\0';
 
-    cout << "\n--- Pacientes Asignados a Dr. " << doctor->nombre << " " << doctor->apellido << " (ID: " << idDoctor << ") ---" << endl;
-    if (doctor->cantidadPacientesAsignados == 0) {
-        cout << "No tiene pacientes asignados actualmente." << endl;
+            if (strstr(nombreLower, buscarLower) || strstr(apellidoLower, buscarLower)) {
+                mostrarPaciente(p);
+                encontrado = true;
+            }
+        }
+    }
+    archivo.close();
+if (!encontrado) {
+        cout << "\nNo se encontraron pacientes activos con ese nombre/apellido." << endl;
+    }
+}
+void verHistorialMedicoCompleto(Hospital* h) {
+    int id;
+    cout << "Ingrese el ID del paciente para ver su historial: ";
+    cin >> id;
+
+    Paciente p;
+    if (!leerPacientePorId(id, p)) {
+        cout << "\n❌ Paciente con ID " << id << " no encontrado o inactivo." << endl;
         return;
     }
 
-    cout << setfill('-') << setw(70) << "" << setfill(' ') << endl;
-    cout << "| " << left << setw(5) << "ID"
-         << "| " << setw(40) << "Nombre Completo"
-         << "| " << setw(15) << "Cedula"
-         << "|" << endl;
-    cout << setfill('-') << setw(70) << "" << setfill(' ') << endl;
+    
 
-    for (int i = 0; i < doctor->cantidadPacientesAsignados; ++i) {
-        Paciente* p = buscarPacientePorId(hospital, doctor->pacientesAsignados[i]);
-        if (p != nullptr) {
-            cout << "| " << left << setw(5) << p->id
-                 << "| " << setw(40) << (string(p->nombre) + " " + string(p->apellido)).c_str()
-                 << "| " << setw(15) << p->cedula
-                 << "|" << endl;
-        }
-    }
-    cout << setfill('-') << setw(70) << "" << setfill(' ') << endl;
-}
-
+   
 
 void listarDoctores(Hospital* hospital) {
     cout << "\n--- LISTADO DE DOCTORES ---" << endl;
