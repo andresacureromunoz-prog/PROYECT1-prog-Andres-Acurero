@@ -1831,7 +1831,352 @@ void eliminarDoctor(Hospital* h) {
             }
         }
         archCitas.close();
+
+        // 3.2. Actualizar referencias en Historial (solo se elimina el ID, la entrada queda inactiva si no se compacta)
+        fstream archPacientes(ARCHIVO_PACIENTES, ios::binary | ios::in | ios::out);
+        Paciente p;
+        for (int i = 1; i <= h->ultimoIdPaciente; ++i) {
+            long pos = calcularPosicion(i, sizeof(Paciente));
+            archPacientes.seekg(pos);
+            if (archPacientes.read(reinterpret_cast<char*>(&p), sizeof(Paciente)) && p.activo) {
+                bool modificado = false;
+                for (int j = 0; j < p.numHistorial; ++j) {
+                    if (p.historial[j].idDoctor == id) {
+                        p.historial[j].activo = false;
+                        modificado = true;
+                    }
+                }
+                if (modificado) {
+                    archPacientes.seekp(pos);
+                    archPacientes.write(reinterpret_cast<const char*>(&p), sizeof(Paciente));
+                }
+            }
+        }
+        archPacientes.close();
+
+        guardarDatosHospital(h); // Guardar el totalCitas actualizado
+
+        cout << "\n✅ Doctor ID " << id << " eliminado lógicamente. Sus citas han sido canceladas y referencias a él en historial marcadas como inactivas." << endl;
+    } else {
+        cout << "\n❌ ERROR al marcar el doctor como inactivo." << endl;
+    }
+}
+void gestionarDoctores(Hospital* h) {
+    int opcion;
+    do {
+        cout << "\n========================================" << endl;
+        cout << "      SUBMENÚ GESTIÓN DE DOCTORES" << endl;
+        cout << "========================================" << endl;
+        cout << "1. Registrar nuevo doctor" << endl;
+        cout << "2. Buscar doctor por cédula profesional" << endl;
+        cout << "3. Buscar doctores por especialidad" << endl;
+        cout << "4. Asignar paciente a doctor" << endl;
+        cout << "5. Ver pacientes asignados a doctor" << endl;
+        cout << "6. Listar todos los doctores" << endl;
+        cout << "7. Eliminar doctor (Lógico)" << endl;
+        cout << "0. Volver al menú principal" << endl;
+        cout << "Opción: ";
+
+        if (!(cin >> opcion)) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            opcion = -1;
+        }
+
+        switch (opcion) {
+            case 1: crearDoctor(h); break;
+            case 2: buscarDoctorPorCedulaProfesional(h); break;
+            case 3: buscarDoctoresPorEspecialidad(h); break;
+            case 4: asignarPacienteADoctor(h); break;
+            case 5: verPacientesAsignadosADoctor(h); break;
+            case 6: listarDoctores(h); break;
+            case 7: eliminarDoctor(h); break;
+            case 0: cout << "Volviendo al menú principal." << endl; break;
+            default: cout << "Opción no válida. Intente de nuevo." << endl; break;
+        }
+    } while (opcion != 0);
+}
+// ----------------------
+// CITAS (RUTINAS)
+// ----------------------
+
+void agendarCita(Hospital* h) {
+    int idPaciente, idDoctor;
+    char fecha[11], hora[6], motivo[101];
+
+    cout << "\n--- Agendar Nueva Cita ---" << endl;
+    cout << "ID del Paciente: ";
+    cin >> idPaciente;
+    cout << "ID del Doctor: ";
+    cin >> idDoctor;
+    limpiarBuffer();
+
+    Paciente p;
+    Doctor d;
+    
+    if (!leerPacientePorId(idPaciente, p)) {
+        cout << "❌ Paciente ID " << idPaciente << " no encontrado o inactivo." << endl;
+        return;
+    }
+    
+    if (!leerDoctorPorId(idDoctor, d)) {
+        cout << "❌ Doctor ID " << idDoctor << " no encontrado o inactivo." << endl;
+        return;
+    }
+
+    cout << "Fecha (YYYY-MM-DD): ";
+    cin.getline(fecha, 11);
+    cout << "Hora (HH:MM): ";
+    cin.getline(hora, 6);
+    cout << "Motivo: ";
+    cin.getline(motivo, 101);
+
+    // Verificar capacidad
+    if (p.numCitas >= MAX_CITAS_PACIENTE) {
+        cout << "❌ El paciente ha alcanzado su límite de citas agendadas (" << MAX_CITAS_PACIENTE << ")." << endl;
+        return;
+    }
+    if (d.numCitas >= MAX_CITAS_DOCTOR) {
+        cout << "❌ El doctor ha alcanzado su límite de citas agendadas (" << MAX_CITAS_DOCTOR << ")." << endl;
+        return;
+    }
+
+    Cita c;
+    c.idCita = 0; // Nuevo registro
+    c.idPaciente = idPaciente;
+    c.idDoctor = idDoctor;
+    strncpy(c.fecha, fecha, 11);
+    strncpy(c.hora, hora, 6);
+    strncpy(c.motivo, motivo, 101);
+    c.estado = 0; // Agendada
+
+    if (escribirCita(c, h)) {
+        // Actualizar referencias en Paciente
+        p.idCitas[p.numCitas++] = c.idCita;
+        escribirPaciente(p, h);
         
+        // Actualizar referencias en Doctor
+        d.idCitas[d.numCitas++] = c.idCita;
+        escribirDoctor(d, h);
+        
+        cout << "\n✅ Cita agendada con ID: " << c.idCita << endl;
+    } else {
+        cout << "\n❌ ERROR al guardar la cita en el archivo." << endl;
+    }
+}
+// Sobrecarga de la función original para precarga
+void agendarCita(Hospital* h, int idPaciente, int idDoctor, const char* fecha, const char* hora, const char* motivo) {
+    
+    Paciente p;
+    Doctor d;
+    if (!leerPacientePorId(idPaciente, p) || !leerDoctorPorId(idDoctor, d)) {
+        cerr << "ADVERTENCIA: No se pudo agendar cita de precarga. Paciente/Doctor inactivo/no existe." << endl;
+        return;
+    }
+
+    if (p.numCitas >= MAX_CITAS_PACIENTE || d.numCitas >= MAX_CITAS_DOCTOR) {
+        cerr << "ADVERTENCIA: No se pudo agendar cita de precarga. Limite alcanzado." << endl;
+        return;
+    }
+
+    Cita c;
+    c.idCita = 0; 
+    c.idPaciente = idPaciente;
+    c.idDoctor = idDoctor;
+    strncpy(c.fecha, fecha, 11);
+    strncpy(c.hora, hora, 6);
+    strncpy(c.motivo, motivo, 101);
+    c.estado = 0;
+
+    if (escribirCita(c, h)) {
+        p.idCitas[p.numCitas++] = c.idCita;
+        escribirPaciente(p, h);
+        
+        d.idCitas[d.numCitas++] = c.idCita;
+        escribirDoctor(d, h);
+    }
+}
+
+void cancelarCita(Hospital* h) {
+    int idCita;
+    cout << "Ingrese el ID de la Cita a cancelar: ";
+    cin >> idCita;
+
+    Cita c;
+    if (!leerCitaPorId(idCita, c)) {
+        cout << "\n❌ Cita ID " << idCita << " no encontrada o ya está inactiva/cancelada." << endl;
+        return;
+    }
+
+    if (c.estado != 0) {
+        cout << "\n⚠️ La cita ya está en estado ";
+        if (c.estado == 1) cout << "ATENDIDA";
+        else if (c.estado == 2) cout << "CANCELADA";
+        cout << " y no puede ser cancelada." << endl;
+        return;
+    }
+
+    // 1. Marcar cita como cancelada (estado=2) y como inactiva (activo=false)
+    c.estado = 2;
+    c.activo = false;
+    
+    if (escribirCita(c, h)) {
+        // 2. Actualizar contadores del Hospital
+        h->totalCitas--;
+        guardarDatosHospital(h);
+
+        // 3. Eliminar referencia en Paciente
+        Paciente p;
+        if (leerPacientePorId(c.idPaciente, p)) {
+            bool modificado = false;
+            for (int i = 0; i < p.numCitas; ++i) {
+                if (p.idCitas[i] == idCita) {
+                    for (int j = i; j < p.numCitas - 1; ++j) {
+                        p.idCitas[j] = p.idCitas[j + 1];
+                    }
+                    p.numCitas--;
+                    modificado = true;
+                    break;
+                }
+            }
+            if (modificado) escribirPaciente(p, h);
+        }
+        // 4. Eliminar referencia en Doctor
+        Doctor d;
+        if (leerDoctorPorId(c.idDoctor, d)) {
+            bool modificado = false;
+            for (int i = 0; i < d.numCitas; ++i) {
+                if (d.idCitas[i] == idCita) {
+                    for (int j = i; j < d.numCitas - 1; ++j) {
+                        d.idCitas[j] = d.idCitas[j + 1];
+                    }
+                    d.numCitas--;
+                    modificado = true;
+                    break;
+                }
+            }
+            if (modificado) escribirDoctor(d, h);
+        }
+        
+        cout << "\n✅ Cita ID " << idCita << " cancelada exitosamente y referencias eliminadas." << endl;
+    } else {
+        cout << "\n❌ ERROR al sobrescribir el registro de la cita." << endl;
+    }
+}
+void atenderCita(Hospital* h) {
+    int idCita;
+    cout << "Ingrese el ID de la Cita a atender: ";
+    cin >> idCita;
+
+    Cita c;
+    if (!leerCitaPorId(idCita, c)) {
+        cout << "\n❌ Cita ID " << idCita << " no encontrada o ya está inactiva." << endl;
+        return;
+    }
+
+    if (c.estado != 0) {
+        cout << "\n⚠️ La cita ya está en estado ";
+        if (c.estado == 1) cout << "ATENDIDA";
+        else if (c.estado == 2) cout << "CANCELADA";
+        cout << " y no puede ser atendida nuevamente." << endl;
+        return;
+    }
+
+    // 1. Solicitar datos de la consulta
+    HistorialMedico hm;
+    hm.idConsulta = 0; // Se asigna dentro del paciente
+    hm.idDoctor = c.idDoctor;
+    hm.costoConsulta = 0.0f; // Se actualizará más abajo
+    hm.activo = true;
+    
+    cout << "\n--- Ingreso de Historial para Cita ID " << idCita << " ---" << endl;
+    limpiarBuffer();
+    cout << "Diagnóstico (máx 200 chars): ";
+    cin.getline(hm.diagnostico, 201);
+    cout << "Tratamiento (máx 200 chars): ";
+    cin.getline(hm.tratamiento, 201);
+    cout << "Medicamentos (máx 150 chars): ";
+    cin.getline(hm.medicamentos, 151);
+
+    // 2. Obtener costo de doctor
+    Doctor d;
+    float costoBase = 0.0f;
+    if (leerDoctorPorId(c.idDoctor, d)) {
+        costoBase = d.costoConsulta;
+        cout << "Costo base del Doctor: " << fixed << setprecision(2) << costoBase << endl;
+    } else {
+        cout << "ADVERTENCIA: Doctor inactivo/eliminado, costo base 0.00" << endl;
+    }
+
+    // Asignar el costo
+    hm.costoConsulta = costoBase;
+    strncpy(hm.fecha, c.fecha, 11);
+    strncpy(hm.hora, c.hora, 6);
+
+    // 3. Actualizar Paciente (agregar historial y eliminar referencia a cita)
+    Paciente p;
+    if (leerPacientePorId(c.idPaciente, p)) {
+        if (p.numHistorial >= MAX_HISTORIAL_MEDICO) {
+            cout << "❌ ERROR: El paciente ha alcanzado el límite de entradas en el historial (" << MAX_HISTORIAL_MEDICO << ")." << endl;
+            return;
+        }
+
+        // 3.1. Asignar ID de consulta y agregar al historial
+        hm.idConsulta = p.numHistorial + 1;
+        p.historial[p.numHistorial++] = hm;
+        
+        // 3.2. Eliminar referencia a cita
+        bool citaReferenciaEliminada = false;
+        for (int i = 0; i < p.numCitas; ++i) {
+            if (p.idCitas[i] == idCita) {
+                for (int j = i; j < p.numCitas - 1; ++j) {
+                    p.idCitas[j] = p.idCitas[j + 1];
+                }
+                p.numCitas--;
+                citaReferenciaEliminada = true;
+                break;
+            }
+        }
+
+         if (citaReferenciaEliminada) {
+            escribirPaciente(p, h);
+            cout << "✅ Historial médico actualizado y referencia de cita eliminada en paciente." << endl;
+        } else {
+            cout << "ADVERTENCIA: No se encontró la referencia de la cita en el paciente, pero el historial fue añadido." << endl;
+        }
+    } else {
+        cout << "❌ ERROR: Paciente de la cita no encontrado, no se puede guardar el historial." << endl;
+        return;
+    }
+
+    // 4. Actualizar Doctor (eliminar referencia a cita)
+    if (leerDoctorPorId(c.idDoctor, d)) {
+        bool modificado = false;
+        for (int i = 0; i < d.numCitas; ++i) {
+            if (d.idCitas[i] == idCita) {
+                for (int j = i; j < d.numCitas - 1; ++j) {
+                    d.idCitas[j] = d.idCitas[j + 1];
+                }
+                d.numCitas--;
+                modificado = true;
+                break;
+            }
+        }
+        if (modificado) escribirDoctor(d, h);
+    }
+    
+    // 5. Marcar cita como atendida (estado=1) y como inactiva (activo=false)
+    c.estado = 1;
+    c.activo = false;
+    if (escribirCita(c, h)) {
+        h->totalCitas--;
+        guardarDatosHospital(h);
+        cout << "\n✅ Cita ID " << idCita << " marcada como atendida y eliminada lógicamente." << endl;
+    } else {
+        cout << "\n❌ ERROR al sobrescribir el registro de la cita. Las referencias ya fueron eliminadas." << endl;
+    }
+}
+
     
 
     
