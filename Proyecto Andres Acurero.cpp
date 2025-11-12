@@ -1305,230 +1305,557 @@ void verHistorialMedicoCompleto(Hospital* h) {
         return;
     }
 
+    cout << "\n==========================================" << endl;
+    cout << "  HISTORIAL MÉDICO de " << p.nombre << " " << p.apellido << endl;
+    cout << "==========================================" << endl;
+
+    if (p.numHistorial == 0) {
+        cout << "El paciente no tiene entradas en el historial." << endl;
+        return;
+    }
     
+    for (int i = 0; i < p.numHistorial; ++i) {
+        const HistorialMedico& hm = p.historial[i];
+        if (hm.activo) {
+            cout << "\n--- Consulta #" << hm.idConsulta << (hm.activo ? "" : " (INACTIVA)") << " ---" << endl;
+            cout << "Fecha/Hora: " << hm.fecha << " " << hm.hora << endl;
+            cout << "Doctor ID: " << hm.idDoctor << endl;
+            cout << "Diagnóstico: " << hm.diagnostico << endl;
+            cout << "Tratamiento: " << hm.tratamiento << endl;
+            cout << "Medicamentos: " << hm.medicamentos << endl;
+            cout << "Costo: " << fixed << setprecision(2) << hm.costoConsulta << endl;
+        }
+    }
+}
+void actualizarDatosPaciente(Hospital* h) {
+    int id;
+    cout << "Ingrese el ID del paciente a actualizar: ";
+    cin >> id;
 
-   
-
-void listarDoctores(Hospital* hospital) {
-    cout << "\n--- LISTADO DE DOCTORES ---" << endl;
-    if (hospital->cantidadDoctores == 0) {
-        cout << "No hay doctores registrados." << endl;
+    Paciente p;
+    if (!leerPacientePorId(id, p)) {
+        cout << "\n❌ Paciente con ID " << id << " no encontrado o inactivo." << endl;
         return;
     }
 
-    cout << setfill('-') << setw(100) << "" << setfill(' ') << endl;
-    cout << "| " << left << setw(5) << "ID"
-         << "| " << setw(30) << "Nombre"
-         << "| " << setw(15) << "Especialidad"
-         << "| " << right << setw(10) << "Costo Cons."
-         << "| " << setw(10) << "Pacientes"
-         << "| " << left << setw(10) << "Disponible"
-         << "|" << endl;
-    cout << setfill('-') << setw(100) << "" << setfill(' ') << endl;
+   cout << "\n--- Actualizando datos de: " << p.nombre << " " << p.apellido << " ---" << endl;
+    limpiarBuffer();
+    
+    char input[51];
 
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        Doctor& d = hospital->doctores[i];
-        cout << "| " << left << setw(5) << d.id
-             << "| " << setw(30) << (string(d.nombre) + " " + string(d.apellido)).c_str()
-             << "| " << setw(15) << d.especialidad
-             << "| " << right << setw(10) << fixed << setprecision(2) << d.costoConsulta
-             << "| " << setw(10) << d.cantidadPacientesAsignados
-             << "| " << left << setw(10) << (d.disponible ? "Si" : "No")
-             << "|" << endl;
+    cout << "Nuevo Nombre (" << p.nombre << "): ";
+    cin.getline(input, 51);
+    if (input[0] != '\0') strncpy(p.nombre, input, 51);
+
+    cout << "Nuevo Apellido (" << p.apellido << "): ";
+    cin.getline(input, 51);
+    if (input[0] != '\0') strncpy(p.apellido, input, 51);
+
+    int nuevaEdad;
+    cout << "Nueva Edad (" << p.edad << "): ";
+    cin >> nuevaEdad;
+    if (cin.fail()) { cin.clear(); } else { p.edad = nuevaEdad; }
+    limpiarBuffer();
+
+    cout << "Nuevo Sexo (" << p.sexo << ") (M/F/O): ";
+    char nuevoSexo;
+    cin >> nuevoSexo;
+    nuevoSexo = toupper(nuevoSexo);
+    if (!cin.fail() && (nuevoSexo == 'M' || nuevoSexo == 'F' || nuevoSexo == 'O')) {
+        p.sexo = nuevoSexo;
     }
-    cout << setfill('-') << setw(100) << "" << setfill(' ') << endl;
+    limpiarBuffer();
+
+    if (escribirPaciente(p, h)) {
+        cout << "\n✅ Datos del paciente ID " << p.idPaciente << " actualizados con éxito." << endl;
+    } else {
+        cout << "\n❌ ERROR al sobrescribir el registro del paciente." << endl;
+    }
 }
 
-bool eliminarDoctor(Hospital* hospital, int id) {
-    int indiceEncontrado = -1;
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        if (hospital->doctores[i].id == id) {
-            indiceEncontrado = i;
-            break;
+void listarPacientes(Hospital* h) {
+    cout << "\n==========================================" << endl;
+    cout << "  LISTADO DE PACIENTES ACTIVOS (" << h->totalPacientes << ")" << endl;
+    cout << "==========================================" << endl;
+
+    fstream archivo(ARCHIVO_PACIENTES, ios::binary | ios::in);
+    if (!archivo.is_open()) {
+        cout << "❌ ERROR: Archivo de pacientes no disponible." << endl;
+        return;
+    }
+
+    Paciente p;
+    int cont = 0;
+    
+    // Recorrido secuencial
+    for (int i = 1; i <= h->ultimoIdPaciente; ++i) {
+        long pos = calcularPosicion(i, sizeof(Paciente));
+        archivo.seekg(pos);
+        if (archivo.read(reinterpret_cast<char*>(&p), sizeof(Paciente)) && p.activo) {
+            cout << i << ". ID: " << p.idPaciente 
+                 << ", Nombre: " << p.nombre << " " << p.apellido 
+                 << ", Cédula: " << p.cedula 
+                 << ", Edad: " << p.edad 
+                 << ", Historial: " << p.numHistorial 
+                 << ", Citas: " << p.numCitas << endl;
+            cont++;
         }
     }
-
-    if (indiceEncontrado == -1) {
-        return false;
-    }
-
-    Doctor& doctorAEliminar = hospital->doctores[indiceEncontrado];
-
-    // 1. Liberar memoria de arrays dinámicos
-    delete[] doctorAEliminar.pacientesAsignados;
-    delete[] doctorAEliminar.citasAgendadas;
+    archivo.close();
     
-    // 2. Cancelar citas asociadas (Nota: Se deben buscar las citas por ID en el array de citas del Hospital)
-
-    for (int i = 0; i < hospital->cantidadCitas; ++i) {
-        if (hospital->citas[i].idDoctor == id && strcmp(hospital->citas[i].estado, "Agendada") == 0) {
-            strcpy(hospital->citas[i].estado, "Cancelada");
-            
-        }
+    if (cont == 0) {
+        cout << "No hay pacientes activos registrados." << endl;
     }
-    
-    // 3. Compactar array de doctores
-    for (int i = indiceEncontrado; i < hospital->cantidadDoctores - 1; ++i) {
-        hospital->doctores[i] = hospital->doctores[i + 1];
-    }
-    hospital->cantidadDoctores--;
-
-    return true;
 }
 
-
-
-
-Paciente* buscarPacientePorCedula(Hospital* hospital, const char* cedula) {
-    if (hospital == nullptr || cedula == nullptr) return nullptr;
-
-    char* cedulaLower = toLowerString(cedula);
-    if (cedulaLower == nullptr) return nullptr;
-
-    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
-        char* pacCedulaLower = toLowerString(hospital->pacientes[i].cedula);
-        if (pacCedulaLower != nullptr && strcmp(pacCedulaLower, cedulaLower) == 0) {
-            delete[] cedulaLower;
-            delete[] pacCedulaLower;
-            return &hospital->pacientes[i];
-        }
-        delete[] pacCedulaLower;
+void eliminarPaciente(Hospital* h) {
+    int id;
+    cout << "Ingrese el ID del paciente a eliminar (eliminación lógica): ";
+    cin >> id;
+    
+    Paciente p;
+    if (!leerPacientePorId(id, p)) {
+        cout << "\n❌ Paciente con ID " << id << " no encontrado o ya inactivo." << endl;
+        return;
     }
+    // 1. Marcar como inactivo
+    p.activo = false;
+    if (escribirPaciente(p, h)) {
+        // 2. Actualizar contadores del Hospital
+        h->totalPacientes--;
+        guardarDatosHospital(h);
 
-    delete[] cedulaLower;
-    return nullptr;
-}
-
-
-
-
-Paciente* crearPaciente(Hospital* hospital, const char* nombre, const char* apellido,
-                        const char* cedula, int edad, char sexo) {
-    
-    // 1. Verificar unicidad de cédula
-    if (buscarPacientePorCedula(hospital, cedula) != nullptr) {
-        cout << "ERROR: La cedula " << cedula << " ya esta registrada." << endl;
-        return nullptr;
-    }
-    
-    // 2. Redimensionar si el array de pacientes está lleno
-    if (hospital->cantidadPacientes >= hospital->capacidadPacientes) {
-        redimensionarArrayPacientes(hospital);
-        if (hospital->cantidadPacientes >= hospital->capacidadPacientes) { 
-            cerr << "ERROR: Fallo el redimensionamiento de pacientes." << endl;
-            return nullptr;
-        }
-    }
-    
-    // 3. Asignar ID y obtener puntero a la nueva posición
-    Paciente* nuevoPaciente = &hospital->pacientes[hospital->cantidadPacientes];
-    nuevoPaciente->id = hospital->siguienteIdPaciente++;
-    
-    // 4. Copiar datos y validaciones
-    strncpy(nuevoPaciente->nombre, nombre, 50); nuevoPaciente->nombre[50] = '\0';
-    strncpy(nuevoPaciente->apellido, apellido, 50); nuevoPaciente->apellido[50] = '\0';
-    strncpy(nuevoPaciente->cedula, cedula, 20); nuevoPaciente->cedula[20] = '\0';
-
-    nuevoPaciente->edad = (edad >= 0 && edad <= 120) ? edad : 0;
-    nuevoPaciente->sexo = (toupper(sexo) == 'M' || toupper(sexo) == 'F') ? toupper(sexo) : 'N'; 
-    
-    // Inicializar arrays de alergias y observaciones como strings vacíos
-    strcpy(nuevoPaciente->tipoSangre, "N/A");
-    strcpy(nuevoPaciente->telefono, "N/A");
-    strcpy(nuevoPaciente->direccion, "N/A");
-    strcpy(nuevoPaciente->email, "N/A");
-    strcpy(nuevoPaciente->alergias, "");
-    strcpy(nuevoPaciente->observaciones, "");
-    
-    // 5. Inicializar arrays dinámicos del paciente
-    
-    // Historial médico
-    nuevoPaciente->cantidadConsultas = 0;
-    nuevoPaciente->capacidadHistorial = CAPACIDAD_INICIAL_HISTORIAL;
-    nuevoPaciente->historial = new (std::nothrow) HistorialMedico[CAPACIDAD_INICIAL_HISTORIAL];
-
-    // Citas agendadas (IDs)
-    nuevoPaciente->cantidadCitasAgendadas = 0;
-    nuevoPaciente->capacidadCitasAgendadas = CAPACIDAD_INICIAL_CITAS_PACIENTE;
-    nuevoPaciente->citasAgendadas = new (std::nothrow) int[CAPACIDAD_INICIAL_CITAS_PACIENTE];
-    
-    // 6. Estado
-    nuevoPaciente->activo = true;
-
-    // 7. Incrementar contador del hospital
-    hospital->cantidadPacientes++;
-    
-    return nuevoPaciente;
-}
-
-
-Paciente** buscarPacientesPorNombre(Hospital* hospital, const char* nombre, int* cantidad) {
-    *cantidad = 0;
-    if (hospital == nullptr || nombre == nullptr) return nullptr;
-
-    char* nombreLower = toLowerString(nombre);
-    if (nombreLower == nullptr) return nullptr;
-    
-    // Paso 1: Contar cuántos pacientes cumplen
-    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
-        char* nombreCompleto = new char[strlen(hospital->pacientes[i].nombre) + strlen(hospital->pacientes[i].apellido) + 2];
-        strcpy(nombreCompleto, hospital->pacientes[i].nombre);
-        strcat(nombreCompleto, " ");
-        strcat(nombreCompleto, hospital->pacientes[i].apellido);
-
-        char* nombreCompletoLower = toLowerString(nombreCompleto);
-        if (nombreCompletoLower != nullptr && strstr(nombreCompletoLower, nombreLower) != nullptr) {
-            (*cantidad)++;
-        }
-        delete[] nombreCompleto;
-        delete[] nombreCompletoLower;
-    }
-    
-    delete[] nombreLower;
-
-    if (*cantidad == 0) return nullptr;
-
-    // Paso 2: Crear array dinámico de punteros
-    Paciente** resultados = new (std::nothrow) Paciente*[*cantidad];
-    if (resultados == nullptr) {
-        *cantidad = 0;
-        return nullptr;
-    }
-
-    // Paso 3: Llenar el array con punteros
-    int indiceResultados = 0;
-    nombreLower = toLowerString(nombre); // Recalcular
-    if (nombreLower == nullptr) {
-        delete[] resultados;
-        return nullptr;
-    }
-    
-    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
-        char* nombreCompleto = new char[strlen(hospital->pacientes[i].nombre) + strlen(hospital->pacientes[i].apellido) + 2];
-        strcpy(nombreCompleto, hospital->pacientes[i].nombre);
-        strcat(nombreCompleto, " ");
-        strcat(nombreCompleto, hospital->pacientes[i].apellido);
+        // 3. Eliminación lógica de referencias cruzadas
         
-        char* nombreCompletoLower = toLowerString(nombreCompleto);
-        if (nombreCompletoLower != nullptr && strstr(nombreCompletoLower, nombreLower) != nullptr) {
-            resultados[indiceResultados++] = &hospital->pacientes[i];
+        // 3.1. Eliminar referencias en Doctores:
+        // Se hace un recorrido secuencial de doctores para quitar la referencia
+        fstream archDoctores(ARCHIVO_DOCTORES, ios::binary | ios::in | ios::out);
+        Doctor d;
+        for (int i = 1; i <= h->ultimoIdDoctor; ++i) {
+            long pos = calcularPosicion(i, sizeof(Doctor));
+            archDoctores.seekg(pos);
+            if (archDoctores.read(reinterpret_cast<char*>(&d), sizeof(Doctor)) && d.activo) {
+                bool modificado = false;
+                for (int j = 0; j < d.numPacientesAsignados; ++j) {
+                    if (d.idPacientesAsignados[j] == id) {
+                        // Mover elementos para eliminar el ID del array
+                        for (int k = j; k < d.numPacientesAsignados - 1; ++k) {
+                            d.idPacientesAsignados[k] = d.idPacientesAsignados[k + 1];
+                        }
+                        d.numPacientesAsignados--;
+                        j--; // Retroceder para revisar el elemento que se movió a esta posición
+                        modificado = true;
+                    }
+                }
+                
+                if (modificado) {
+                    archDoctores.seekp(pos);
+                    archDoctores.write(reinterpret_cast<const char*>(&d), sizeof(Doctor));
+                }
+            }
         }
-        delete[] nombreCompleto;
-        delete[] nombreCompletoLower;
+        archDoctores.close();
+
+        // 3.2. Cancelar Citas del paciente:
+        // Se hace un recorrido secuencial de citas para marcarlas como canceladas
+        fstream archCitas(ARCHIVO_CITAS, ios::binary | ios::in | ios::out);
+        Cita c;
+        for (int i = 1; i <= h->ultimoIdCita; ++i) {
+            long pos = calcularPosicion(i, sizeof(Cita));
+            archCitas.seekg(pos);
+            if (archCitas.read(reinterpret_cast<char*>(&c), sizeof(Cita)) && c.activo) {
+                if (c.idPaciente == id && c.estado == 0) { // Si es cita del paciente y está agendada
+                    c.estado = 2; // Cancelada
+                    c.activo = false; // Eliminación lógica
+                    
+                    archCitas.seekp(pos);
+                    archCitas.write(reinterpret_cast<const char*>(&c), sizeof(Cita));
+                    
+                    // Actualizar el contador de citas en Hospital
+                    h->totalCitas--;
+                    
+                    // Quitar referencia en el Doctor asociado
+                    Doctor dAux;
+                    if (leerDoctorPorId(c.idDoctor, dAux)) {
+                        bool docModificado = false;
+                        for (int j = 0; j < dAux.numCitas; ++j) {
+                            if (dAux.idCitas[j] == c.idCita) {
+                                for (int k = j; k < dAux.numCitas - 1; ++k) {
+                                    dAux.idCitas[k] = dAux.idCitas[k + 1];
+                                }
+                                dAux.numCitas--;
+                                docModificado = true;
+                                break;
+                            }
+                        }
+                        if (docModificado) escribirDoctor(dAux, h);
+                    }
+                }
+            }
+        }
+        archCitas.close();
+        guardarDatosHospital(h); // Guardar el totalCitas actualizado
+        
+        cout << "\n✅ Paciente ID " << id << " eliminado lógicamente. Sus citas han sido canceladas y referencias eliminadas." << endl;
+    } else {
+        cout << "\n❌ ERROR al marcar el paciente como inactivo." << endl;
+    }
+}
+void gestionarPacientes(Hospital* h) {
+    int opcion;
+    do {
+        cout << "\n========================================" << endl;
+        cout << "      SUBMENÚ GESTIÓN DE PACIENTES" << endl;
+        cout << "========================================" << endl;
+        cout << "1. Registrar nuevo paciente" << endl;
+        cout << "2. Buscar paciente por cédula" << endl;
+        cout << "3. Buscar paciente por nombre" << endl;
+        cout << "4. Ver historial médico completo" << endl;
+        cout << "5. Actualizar datos del paciente" << endl;
+        cout << "6. Listar todos los pacientes" << endl;
+        cout << "7. Eliminar paciente (Lógico)" << endl;
+        cout << "0. Volver al menú principal" << endl;
+        cout << "Opción: ";
+        
+        if (!(cin >> opcion)) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            opcion = -1;
+        }
+
+        switch (opcion) {
+            case 1: crearPaciente(h); break;
+            case 2: buscarPacientePorCedula(h); break;
+            case 3: buscarPacientePorNombre(h); break;
+            case 4: verHistorialMedicoCompleto(h); break;
+            case 5: actualizarDatosPaciente(h); break;
+            case 6: listarPacientes(h); break;
+            case 7: eliminarPaciente(h); break;
+            case 0: cout << "Volviendo al menú principal." << endl; break;
+            default: cout << "Opción no válida. Intente de nuevo." << endl; break;
+        }
+    } while (opcion != 0);
+}
+// ----------------------
+// DOCTORES (RUTINAS)
+// ----------------------
+
+void mostrarDoctor(const Doctor& d) {
+    cout << "  -------------------------------------------------" << endl;
+    cout << "  ID: " << d.idDoctor << (d.activo ? "" : " (INACTIVO)") << endl;
+    cout << "  Nombre: " << d.nombre << " " << d.apellido << endl;
+    cout << "  Cédula Prof: " << d.cedulaProfesional << endl;
+    cout << "  Especialidad: " << d.especialidad << endl;
+    cout << "  Experiencia: " << d.experienciaAnios << " años" << endl;
+    cout << "  Costo Consulta: " << fixed << setprecision(2) << d.costoConsulta << endl;
+    cout << "  Pacientes Asignados: " << d.numPacientesAsignados << endl;
+    cout << "  Citas Agendadas: " << d.numCitas << endl;
+    cout << "  -------------------------------------------------" << endl;
+}
+void crearDoctor(Hospital* h) {
+    Doctor d;
+    d.idDoctor = 0; // Marcar como nuevo registro
+
+    cout << "\n--- Registrar Nuevo Doctor ---" << endl;
+    cout << "Nombre: ";
+    limpiarBuffer();
+    cin.getline(d.nombre, 51);
+    cout << "Apellido: ";
+    cin.getline(d.apellido, 51);
+    cout << "Cédula Profesional: ";
+    cin.getline(d.cedulaProfesional, 11);
+    cout << "Especialidad: ";
+    cin.getline(d.especialidad, 51);
+    cout << "Años de Experiencia: ";
+    cin >> d.experienciaAnios;
+    cout << "Costo de Consulta: ";
+    cin >> d.costoConsulta;
+    limpiarBuffer();
+
+    if (escribirDoctor(d, h)) {
+        cout << "\n✅ Doctor " << d.nombre << " registrado con ID: " << d.idDoctor << endl;
+    } else {
+        cout << "\n❌ ERROR al guardar el doctor en el archivo." << endl;
+    }
+}
+// Sobrecarga de la función original para precarga
+void crearDoctor(Hospital* h, const char* nombre, const char* apellido, const char* cedulaProf, const char* especialidad, int experiencia, float costo) {
+    Doctor d;
+    d.idDoctor = 0;
+    strncpy(d.nombre, nombre, 51);
+    strncpy(d.apellido, apellido, 51);
+    strncpy(d.cedulaProfesional, cedulaProf, 11);
+    strncpy(d.especialidad, especialidad, 51);
+    d.experienciaAnios = experiencia;
+    d.costoConsulta = costo;
+    escribirDoctor(d, h);
+}
+void buscarDoctorPorCedulaProfesional(Hospital* h) {
+    char cedula[11];
+    cout << "Ingrese la cédula profesional del doctor a buscar: ";
+    limpiarBuffer();
+    cin.getline(cedula, 11);
+
+    fstream archivo(ARCHIVO_DOCTORES, ios::binary | ios::in);
+    if (!archivo.is_open()) {
+        cout << "❌ ERROR: Archivo de doctores no disponible." << endl;
+        return;
     }
 
-    delete[] nombreLower;
+    Doctor d;
+    bool encontrado = false;
     
-    return resultados;
+    // Recorrido secuencial
+    for (int i = 1; i <= h->ultimoIdDoctor; ++i) {
+        long pos = calcularPosicion(i, sizeof(Doctor));
+        archivo.seekg(pos);
+        if (archivo.read(reinterpret_cast<char*>(&d), sizeof(Doctor)) && d.activo) {
+            if (strcmp(d.cedulaProfesional, cedula) == 0) {
+                mostrarDoctor(d);
+                encontrado = true;
+                break;
+            }
+        }
+    }
+    archivo.close();
+    
+    if (!encontrado) {
+        cout << "\nDoctor con cédula profesional " << cedula << " no encontrado o inactivo." << endl;
+    }
+}
+void buscarDoctoresPorEspecialidad(Hospital* h) {
+    char especialidadBuscar[51];
+    cout << "Ingrese la especialidad a buscar: ";
+    limpiarBuffer();
+    cin.getline(especialidadBuscar, 51);
+
+    fstream archivo(ARCHIVO_DOCTORES, ios::binary | ios::in);
+    if (!archivo.is_open()) {
+        cout << "❌ ERROR: Archivo de doctores no disponible." << endl;
+        return;
+    }
+
+    Doctor d;
+    bool encontrado = false;
+    
+    // Convertir la entrada a minúsculas para búsqueda sin distinción
+    char buscarLower[51];
+    for (int k = 0; especialidadBuscar[k] && k < 50; ++k) buscarLower[k] = tolower(especialidadBuscar[k]);
+    buscarLower[strlen(especialidadBuscar)] = '\0';
+
+    cout << "\n--- Doctores en la especialidad '" << especialidadBuscar << "' ---" << endl;
+
+    // Recorrido secuencial
+    for (int i = 1; i <= h->ultimoIdDoctor; ++i) {
+        long pos = calcularPosicion(i, sizeof(Doctor));
+        archivo.seekg(pos);
+        if (archivo.read(reinterpret_cast<char*>(&d), sizeof(Doctor)) && d.activo) {
+            char especialidadLower[51];
+            for (int k = 0; d.especialidad[k] && k < 50; ++k) especialidadLower[k] = tolower(d.especialidad[k]);
+            especialidadLower[strlen(d.especialidad)] = '\0';
+            
+            if (strstr(especialidadLower, buscarLower)) {
+                mostrarDoctor(d);
+                encontrado = true;
+            }
+        }
+    }
+    archivo.close();
+    
+    if (!encontrado) {
+        cout << "No se encontraron doctores activos en esa especialidad." << endl;
+    }
 }
 
+void asignarPacienteADoctor(Hospital* h) {
+    int idDoctor, idPaciente;
+    cout << "Ingrese el ID del Doctor: ";
+    cin >> idDoctor;
+    cout << "Ingrese el ID del Paciente a asignar: ";
+    cin >> idPaciente;
 
-bool actualizarPaciente(Hospital* hospital, int id) {
-    Paciente* paciente = buscarPacientePorId(hospital, id);
-    if (paciente == nullptr) {
-        cout << "ERROR: Paciente con ID " << id << " no encontrado." << endl;
-        return false;
+    Doctor d;
+    Paciente p;
+    
+    if (!leerDoctorPorId(idDoctor, d)) {
+        cout << "❌ Doctor ID " << idDoctor << " no encontrado o inactivo." << endl;
+        return;
     }
+
+    if (!leerPacientePorId(idPaciente, p)) {
+        cout << "❌ Paciente ID " << idPaciente << " no encontrado o inactivo." << endl;
+        return;
+    }
+    
+    // Verificar si ya está asignado
+    for (int i = 0; i < d.numPacientesAsignados; ++i) {
+        if (d.idPacientesAsignados[i] == idPaciente) {
+            cout << "⚠️ Paciente ID " << idPaciente << " ya está asignado al Doctor ID " << idDoctor << "." << endl;
+            return;
+        }
+    }
+    
+    // Verificar capacidad
+    if (d.numPacientesAsignados >= MAX_PACIENTES_DOCTOR) {
+        cout << "❌ El doctor ha alcanzado su límite de pacientes asignados (" << MAX_PACIENTES_DOCTOR << ")." << endl;
+        return;
+    }
+
+    // Asignar
+    d.idPacientesAsignados[d.numPacientesAsignados++] = idPaciente;
+    
+    if (escribirDoctor(d, h)) {
+        cout << "\n✅ Paciente " << p.nombre << " " << p.apellido << " asignado al Doctor " << d.nombre << " " << d.apellido << "." << endl;
+    } else {
+        cout << "\n❌ ERROR al sobrescribir el registro del doctor." << endl;
+    }
+}
+
+void verPacientesAsignadosADoctor(Hospital* h) {
+    int idDoctor;
+    cout << "Ingrese el ID del Doctor para ver sus pacientes asignados: ";
+    cin >> idDoctor;
+
+    Doctor d;
+    if (!leerDoctorPorId(idDoctor, d)) {
+        cout << "❌ Doctor ID " << idDoctor << " no encontrado o inactivo." << endl;
+        return;
+    }
+    
+    cout << "\n==========================================" << endl;
+    cout << "  PACIENTES ASIGNADOS a Dr/a. " << d.nombre << " " << d.apellido << endl;
+    cout << "==========================================" << endl;
+
+    if (d.numPacientesAsignados == 0) {
+        cout << "El doctor no tiene pacientes asignados." << endl;
+        return;
+    }
+
+    Paciente p;
+    for (int i = 0; i < d.numPacientesAsignados; ++i) {
+        if (leerPacientePorId(d.idPacientesAsignados[i], p)) {
+            cout << i+1 << ". ID: " << p.idPaciente 
+                 << ", Nombre: " << p.nombre << " " << p.apellido 
+                 << ", Cédula: " << p.cedula << endl;
+        } else {
+            cout << i+1 << ". ID: " << d.idPacientesAsignados[i] << " (Referencia rota - Paciente inactivo/eliminado)" << endl;
+        }
+    }
+}
+void listarDoctores(Hospital* h) {
+    cout << "\n==========================================" << endl;
+    cout << "  LISTADO DE DOCTORES ACTIVOS (" << h->totalDoctores << ")" << endl;
+    cout << "==========================================" << endl;
+
+    fstream archivo(ARCHIVO_DOCTORES, ios::binary | ios::in);
+    if (!archivo.is_open()) {
+        cout << "❌ ERROR: Archivo de doctores no disponible." << endl;
+        return;
+    }
+
+    Doctor d;
+    int cont = 0;
+    
+    // Recorrido secuencial
+    for (int i = 1; i <= h->ultimoIdDoctor; ++i) {
+        long pos = calcularPosicion(i, sizeof(Doctor));
+        archivo.seekg(pos);
+        if (archivo.read(reinterpret_cast<char*>(&d), sizeof(Doctor)) && d.activo) {
+            cout << i << ". ID: " << d.idDoctor 
+                 << ", Nombre: " << d.nombre << " " << d.apellido 
+                 << ", Especialidad: " << d.especialidad 
+                 << ", Citas: " << d.numCitas << endl;
+            cont++;
+        }
+    }
+    archivo.close();
+    
+    if (cont == 0) {
+        cout << "No hay doctores activos registrados." << endl;
+    }
+}
+void eliminarDoctor(Hospital* h) {
+    int id;
+    cout << "Ingrese el ID del doctor a eliminar (eliminación lógica): ";
+    cin >> id;
+
+    Doctor d;
+    if (!leerDoctorPorId(id, d)) {
+        cout << "\n❌ Doctor con ID " << id << " no encontrado o ya inactivo." << endl;
+        return;
+    }
+    
+    // 1. Marcar como inactivo
+    d.activo = false;
+    if (escribirDoctor(d, h)) {
+        // 2. Actualizar contadores del Hospital
+        h->totalDoctores--;
+        guardarDatosHospital(h);
+        
+        // 3. Eliminación lógica de referencias cruzadas
+        
+        // 3.1. Eliminar referencias a citas y citas del doctor
+        fstream archCitas(ARCHIVO_CITAS, ios::binary | ios::in | ios::out);
+        Cita c;
+        for (int i = 1; i <= h->ultimoIdCita; ++i) {
+            long pos = calcularPosicion(i, sizeof(Cita));
+            archCitas.seekg(pos);
+            if (archCitas.read(reinterpret_cast<char*>(&c), sizeof(Cita)) && c.activo) {
+                if (c.idDoctor == id && c.estado == 0) { // Si es cita del doctor y está agendada
+                    c.estado = 2; // Cancelada
+                    c.activo = false; // Eliminación lógica de la cita
+                    
+                    archCitas.seekp(pos);
+                    archCitas.write(reinterpret_cast<const char*>(&c), sizeof(Cita));
+                    
+                    // Actualizar el contador de citas en Hospital
+                    h->totalCitas--;
+                    
+                    // Quitar referencia en el Paciente asociado
+                    Paciente pAux;
+                    if (leerPacientePorId(c.idPaciente, pAux)) {
+                        bool pacModificado = false;
+                        for (int j = 0; j < pAux.numCitas; ++j) {
+                            if (pAux.idCitas[j] == c.idCita) {
+                                for (int k = j; k < pAux.numCitas - 1; ++k) {
+                                    pAux.idCitas[k] = pAux.idCitas[k + 1];
+                                }
+                                pAux.numCitas--;
+                                pacModificado = true;
+                                break;
+                            }
+                        }
+                        if (pacModificado) escribirPaciente(pAux, h);
+                    }
+                }
+            }
+        }
+        archCitas.close();
+        
+    
+
+    
+
+    
+    
+
+
+
+
+    
+   
+    
+   
+   
+
+
+
+
+
+    
+
+
+
 
     int opcion;
     char buffer[501];
