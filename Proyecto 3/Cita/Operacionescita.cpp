@@ -31,11 +31,18 @@ void registrarCita(std::vector<Cita>& bufferCitas, int& proximoId) {
     proximoId++;
 }
 
-const Cita* buscarCitaPorID(const std::vector<Cita>& bufferCitas, int id) {
-    for (const auto& c : bufferCitas) {
+Cita* buscarCitaPorID(std::vector<Cita>& bufferCitas, int id) {
+    // El bucle también necesita un 'auto&' en lugar de 'const auto&'
+    for (auto& c : bufferCitas) { 
         if (c.getId() == id) return &c;
     }
     return nullptr;
 }
+void listarTodasCitas(const std::vector<Cita>& bufferCitas) {
+    std::cout << "=== Listado de todas las citas ===" << std::endl;
+    for (const auto& c : bufferCitas) {
+        c.mostrarInformacionBasica();
+    }
+}
 
-bool modificarCita(std::vector<Cita>& bufferCitas, int id)
+} // namespace ServicioCitas
