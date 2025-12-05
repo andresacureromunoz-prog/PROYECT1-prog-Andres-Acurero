@@ -1,4 +1,4 @@
-#include "operacionesHistorial.hpp"
+#include "OperacionesHistorial.hpp"
 #include <iostream>
 #include <limits>
 
@@ -32,16 +32,36 @@ void registrarConsulta(std::vector<HistorialMedico>& bufferHistorial, int& proxi
     proximoId++;
 }
 
-    // Declaración completa
 const HistorialMedico* buscarConsultaPorID(const std::vector<HistorialMedico>& bufferHistorial, int idBuscado) {
-    
-    // Iteramos por cada elemento del historial
     for (const auto& consulta : bufferHistorial) {
-        // Asumimos que tu clase HistorialMedico tiene un método o atributo getId() o id
         if (consulta.getId() == idBuscado) {
-            return &consulta; // Retorna la dirección de memoria de la consulta encontrada
+            return &consulta;
         }
     }
-    
-    return nullptr; // Retorna nulo si no se encuentra el ID
+    return nullptr;
 }
+
+bool enlazarConsultas(std::vector<HistorialMedico>& bufferHistorial, int idActual, int idSiguiente) {
+    HistorialMedico* actual = nullptr;
+    HistorialMedico* siguiente = nullptr;
+
+    for (auto& c : bufferHistorial) {
+        if (c.getId() == idActual) actual = &c;
+        if (c.getId() == idSiguiente) siguiente = &c;
+    }
+
+    if (!actual || !siguiente) return false;
+    actual->setSiguienteConsultaId(idSiguiente);
+    return true;
+}
+
+void listarHistorialPaciente(const std::vector<HistorialMedico>& bufferHistorial, int pacienteId) {
+    std::cout << "=== Historial del paciente ID: " << pacienteId << " ===" << std::endl;
+    for (const auto& c : bufferHistorial) {
+        if (c.getPacienteId() == pacienteId) {
+            c.mostrarInformacionBasica();
+        }
+    }
+}
+
+} // namespace ServicioHistorial

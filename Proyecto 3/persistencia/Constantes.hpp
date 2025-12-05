@@ -2,11 +2,11 @@
 #define CONSTANTES_HPP
 
 namespace Rutas {
-    const char* PACIENTES = "datos/pacientes.bin";
-    const char* DOCTORES  = "datos/doctores.bin";
-    const char* CITAS     = "datos/citas.bin";
-    const char* HISTORIALES = "datos/historiales.bin";
-    const char* HOSPITAL  = "datos/hospital.bin";
+    extern const char* PACIENTES;
+    extern const char* DOCTORES;
+    extern const char* CITAS;
+    extern const char* HISTORIALES;
+    extern const char* HOSPITAL;
 }
 
 #endif

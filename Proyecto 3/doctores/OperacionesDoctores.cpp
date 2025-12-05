@@ -4,6 +4,20 @@
 #include <cstring>
 
 namespace ServicioDoctores {
+// Implementación faltante: buscarDoctorPorID
+const Doctor* buscarDoctorPorID(const std::vector<Doctor>& bufferDoctores, int id) {
+    for (const auto& d : bufferDoctores) {
+        if (d.getId() == id) return &d;
+    }
+    return nullptr;
+}
+
+void listarTodosDoctores(const std::vector<Doctor>& bufferDoctores) {
+    std::cout << "=== Listado de Doctores ===" << std::endl;
+    for (const auto& d : bufferDoctores) {
+        d.mostrarInformacionBasica();
+    }
+}
 
 static void limpiarEntrada() {
     std::cin.clear();
@@ -36,3 +50,5 @@ void registrarDoctor(std::vector<Doctor>& bufferDoctores, int& proximoId) {
 
     std::cout << " Doctor registrado exitosamente con ID: " << (proximoId - 1) << std::endl;
 }
+
+} // namespace ServicioDoctores

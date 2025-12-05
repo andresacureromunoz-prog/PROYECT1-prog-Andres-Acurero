@@ -1,9 +1,12 @@
+
+#include <fstream>
 #include "GestorArchivos.hpp"
 
 std::streampos GestorArchivos::calcularPosicion(int indice, size_t tamanioRegistro) {
     return sizeof(ArchivoHeader) + (indice * tamanioRegistro);
 }
 
+// Implementación de métodos de GestorArchivos
 bool GestorArchivos::inicializarArchivo(const char* ruta) {
     std::fstream archivo(ruta, std::ios::in | std::ios::binary);
     if (!archivo) {
@@ -14,7 +17,7 @@ bool GestorArchivos::inicializarArchivo(const char* ruta) {
         nuevo.write(reinterpret_cast<char*>(&header), sizeof(ArchivoHeader));
         nuevo.close();
     }
-    return true;
+        return true;
 }
 
 bool GestorArchivos::verificarIntegridadArchivos() {
@@ -167,5 +170,50 @@ bool GestorArchivos::compactarArchivo(const char* ruta, size_t tamanio) {
     std::ofstream temp("temp.bin", std::ios::out | std::ios::binary);
     if (!temp) return false;
 
+    // Escribimos encabezado provisional; los contadores serán ajustados más abajo
     temp.write(reinterpret_cast<char*>(&header), sizeof(ArchivoHeader));
+
+    // Buffer para leer cada registro
+    char* buffer = new char[tamanio];
+    int nuevosRegistros = 0;
+    int nuevosActivos = 0;
+
+    // Recorremos todos los registros y copiamos solo los activos (ID positivo)
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.seekg(calcularPosicion(i, tamanio));
+        archivo.read(buffer, tamanio);
+        int* idPtr = reinterpret_cast<int*>(buffer);
+        if (*idPtr > 0) {
+            temp.write(buffer, tamanio);
+            nuevosRegistros++;
+            nuevosActivos++;
+        }
+    }
+
+    delete[] buffer;
+
+    // Actualizar header con los nuevos contadores
+    ArchivoHeader nuevoHeader = header;
+    nuevoHeader.cantidadRegistros = nuevosRegistros;
+    nuevoHeader.registrosActivos = nuevosActivos;
+    // El proximoID lo dejamos como estaba (o podrías recalcularlo si lo deseas)
+
+    // Reescribimos header al inicio del archivo temporal
+    temp.seekp(0);
+    temp.write(reinterpret_cast<char*>(&nuevoHeader), sizeof(ArchivoHeader));
+
+    temp.close();
+    archivo.close();
+
+    // Reemplazar archivo original por el temporal
+    if (std::remove(ruta) != 0) {
+        // Si no se puede eliminar, intentamos renombrar no procede
+        return false;
+    }
+    if (std::rename("temp.bin", ruta) != 0) {
+        return false;
+    }
+
+    return true;
+}
 
